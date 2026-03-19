@@ -225,3 +225,50 @@ export async function internalListOnboardingOverview({ search = "", stage = null
 
   return Array.isArray(data) ? data : [];
 }
+
+export async function createInternalSignupInvite({
+  email,
+  fullName = null,
+  portalRole = "internal",
+  expiresInHours = 168,
+  inviteBaseUrl = null,
+}) {
+  const { data, error } = await supabase.rpc("create_internal_signup_invite", {
+    p_email: email,
+    p_full_name: fullName,
+    p_portal_role: portalRole,
+    p_expires_in_hours: expiresInHours,
+    p_invite_base_url: inviteBaseUrl,
+  });
+
+  if (error) {
+    throw new Error(`Internal invite creation failed: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function getInternalSignupInvite(inviteToken) {
+  const { data, error } = await supabase.rpc("get_internal_signup_invite", {
+    p_invite_token: inviteToken,
+  });
+
+  if (error) {
+    throw new Error(`Internal invite lookup failed: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function redeemInternalSignupInvite({ inviteToken, fullName = null }) {
+  const { data, error } = await supabase.rpc("redeem_internal_signup_invite", {
+    p_invite_token: inviteToken,
+    p_full_name: fullName,
+  });
+
+  if (error) {
+    throw new Error(`Internal invite redemption failed: ${error.message}`);
+  }
+
+  return data;
+}

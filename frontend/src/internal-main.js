@@ -1,4 +1,5 @@
 import {
+  createInternalSignupInvite,
   getCurrentSession,
   getInternalPortalContext,
   internalListOnboardingOverview,
@@ -48,15 +49,30 @@ function setAuthMessage(message = "", kind = "") {
   target.textContent = message;
 }
 
+function setInviteMessage(message = "", kind = "") {
+  const target = document.getElementById("inviteMessage");
+  if (!target) return;
+  target.className = `auth-message${kind ? ` ${kind}` : ""}`;
+  target.textContent = message;
+}
+
 function showLoggedOutView() {
   document.getElementById("authCard")?.classList.remove("hide");
   document.getElementById("internalShell")?.classList.remove("show");
   setAuthMessage("");
+  setInviteMessage("");
 }
 
 function showLoggedInView() {
   document.getElementById("authCard")?.classList.add("hide");
   document.getElementById("internalShell")?.classList.add("show");
+}
+
+function updateInviteAccess(context) {
+  const inviteCard = document.getElementById("inviteCard");
+  if (!inviteCard) return;
+  const canInvite = context?.portal_role === "admin";
+  inviteCard.classList.toggle("show", canInvite);
 }
 
 function updateStats(rows) {
@@ -159,6 +175,43 @@ async function loadOverview() {
   renderOverview(rows);
 }
 
+function getInviteBaseUrl() {
+  return `${window.location.origin}/internal-signup.html`;
+}
+
+async function handleCreateInvite(event) {
+  event.preventDefault();
+  const submitBtn = document.getElementById("inviteSubmit");
+  const email = document.getElementById("inviteEmail")?.value?.trim();
+  const fullName = document.getElementById("inviteFullName")?.value?.trim() || null;
+  const portalRole = document.getElementById("inviteRole")?.value || "internal";
+  const expiresHours = Number(document.getElementById("inviteExpiryHours")?.value || 168);
+  const linkOutput = document.getElementById("inviteLink");
+
+  if (!email) {
+    setInviteMessage("Invite email is required.", "error");
+    return;
+  }
+
+  try {
+    setInviteMessage("");
+    if (submitBtn) submitBtn.disabled = true;
+    const result = await createInternalSignupInvite({
+      email,
+      fullName,
+      portalRole,
+      expiresInHours: Number.isFinite(expiresHours) ? expiresHours : 168,
+      inviteBaseUrl: getInviteBaseUrl(),
+    });
+    if (linkOutput) linkOutput.value = result?.invite_url || "";
+    setInviteMessage("Invite link generated. Send it directly to the team member.", "success");
+  } catch (error) {
+    setInviteMessage(error.message, "error");
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
 function setSessionInfo(session, context) {
   const el = document.getElementById("sessionInfo");
   if (!el) return;
@@ -182,6 +235,7 @@ async function hydrateInternal(session) {
   state.context = context;
   showLoggedInView();
   setSessionInfo(session, context);
+  updateInviteAccess(context);
   await loadOverview();
 }
 
@@ -233,6 +287,19 @@ function bindHandlers() {
     }
   });
 
+  document.getElementById("inviteForm")?.addEventListener("submit", handleCreateInvite);
+
+  document.getElementById("copyInviteBtn")?.addEventListener("click", async () => {
+    const linkOutput = document.getElementById("inviteLink");
+    if (!linkOutput?.value) return;
+    try {
+      await navigator.clipboard.writeText(linkOutput.value);
+      setInviteMessage("Invite link copied.", "success");
+    } catch (_error) {
+      setInviteMessage("Unable to copy automatically. Copy the link manually.", "error");
+    }
+  });
+
   document.getElementById("searchInput")?.addEventListener("input", async () => {
     try {
       await loadOverview();
@@ -277,6 +344,7 @@ async function initialize() {
     }
   } else {
     showLoggedOutView();
+    updateInviteAccess(null);
   }
 
   onAuthStateChange(async (_event, nextSession) => {
@@ -284,6 +352,7 @@ async function initialize() {
     if (!nextSession) {
       showLoggedOutView();
       setSessionInfo(null, null);
+      updateInviteAccess(null);
       return;
     }
 

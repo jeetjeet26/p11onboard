@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P11creative | Internal Invite Signup</title>
+    <style>
+      :root {
+        --red: #fa4614;
+        --charcoal: #1a1a1a;
+        --bg: #f5f5f3;
+        --white: #ffffff;
+        --border: #e3e2df;
+        --gray: #767676;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--charcoal);
+      }
+
+      .header {
+        background: var(--charcoal);
+        color: white;
+        border-bottom: 3px solid var(--red);
+        padding: 14px 22px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: var(--red);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 12px;
+      }
+
+      .brand-title {
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .brand-title span {
+        color: var(--red);
+      }
+
+      .brand-sub {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 28px 20px 40px;
+      }
+
+      .status {
+        margin-bottom: 10px;
+        color: var(--gray);
+        font-size: 13px;
+      }
+
+      .error-card {
+        display: none;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+      }
+
+      .error-card.show {
+        display: block;
+      }
+
+      .shell.hide {
+        display: none;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+
+      .title {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+
+      .copy {
+        margin: 0 0 14px;
+        color: var(--gray);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .invite-meta {
+        margin-bottom: 14px;
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fcfcfb;
+        font-size: 12px;
+      }
+
+      .invite-meta-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 4px 0;
+      }
+
+      .meta-key {
+        color: var(--gray);
+      }
+
+      .meta-value {
+        font-weight: 700;
+      }
+
+      .field {
+        margin-bottom: 10px;
+      }
+
+      .field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .field input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 11px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+
+      .field input[readonly] {
+        background: #f6f6f4;
+      }
+
+      .field input:focus {
+        outline: none;
+        border-color: var(--red);
+        box-shadow: 0 0 0 2px rgba(250, 70, 20, 0.08);
+      }
+
+      .submit-btn {
+        border: none;
+        border-radius: 8px;
+        background: var(--red);
+        color: white;
+        font-size: 13px;
+        font-weight: 800;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .auth-message {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--gray);
+        min-height: 18px;
+      }
+
+      .auth-message.error {
+        color: #cc2e17;
+      }
+
+      .auth-message.success {
+        color: #1a9e6a;
+      }
+
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <div class="mark">P11</div>
+        <div>
+          <div class="brand-title">P11<span>creative</span></div>
+          <div class="brand-sub">Internal Invite Signup</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="status" id="inviteStatus">Validating invite...</div>
+
+      <section class="error-card" id="inviteErrorCard">
+        <h1 class="title">Invite Link Invalid</h1>
+        <p class="copy">
+          This invite is missing, expired, or already used. Ask an admin for a fresh internal invite link.
+        </p>
+      </section>
+
+      <section class="shell" id="inviteShell">
+        <div class="invite-meta">
+          <div class="invite-meta-row">
+            <span class="meta-key">Invited Email</span>
+            <span class="meta-value" id="invitedEmail">Unknown</span>
+          </div>
+          <div class="invite-meta-row">
+            <span class="meta-key">Role</span>
+            <span class="meta-value" id="invitedRole">internal</span>
+          </div>
+          <div class="invite-meta-row">
+            <span class="meta-key">Expires</span>
+            <span class="meta-value" id="invitedExpires">Unknown</span>
+          </div>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <h2 class="title">Create Internal Account</h2>
+            <p class="copy">Use this invited email to create your internal login.</p>
+            <form id="signupForm">
+              <div class="field">
+                <label for="signupFullName">Full name</label>
+                <input id="signupFullName" type="text" required />
+              </div>
+              <div class="field">
+                <label for="signupEmail">Email</label>
+                <input id="signupEmail" type="email" readonly required />
+              </div>
+              <div class="field">
+                <label for="signupPassword">Password</label>
+                <input id="signupPassword" type="password" minlength="8" required />
+              </div>
+              <button class="submit-btn" id="signupSubmit" type="submit">Create Account</button>
+            </form>
+          </article>
+
+          <article class="card">
+            <h2 class="title">Already Have an Account?</h2>
+            <p class="copy">Log in with the same invited email to redeem this invite.</p>
+            <form id="loginForm">
+              <div class="field">
+                <label for="loginEmail">Email</label>
+                <input id="loginEmail" type="email" readonly required />
+              </div>
+              <div class="field">
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password" required />
+              </div>
+              <button class="submit-btn" id="loginSubmit" type="submit">Log In and Join</button>
+            </form>
+          </article>
+        </div>
+
+        <div class="auth-message" id="inviteMessage"></div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./frontend/src/internal-signup-main.js"></script>
+  </body>
+</html>

@@ -120,14 +120,70 @@ $$;
 
 create or replace function onboarding.is_internal_user()
 returns boolean
-language sql
+language plpgsql
 stable
 as $$
-  select coalesce(
-    (auth.jwt() -> 'app_metadata' ->> 'portal_role') in ('internal', 'admin'),
-    false
-  )
-  or coalesce((auth.jwt() ->> 'role') = 'service_role', false);
+declare
+  v_has_access boolean := false;
+begin
+  if coalesce((auth.jwt() ->> 'role') = 'service_role', false) then
+    return true;
+  end if;
+
+  if coalesce((auth.jwt() -> 'app_metadata' ->> 'portal_role') in ('internal', 'admin'), false) then
+    return true;
+  end if;
+
+  if to_regclass('onboarding.internal_user_access') is null then
+    return false;
+  end if;
+
+  execute $sql$
+    select exists (
+      select 1
+      from onboarding.internal_user_access i
+      where i.auth_user_id = auth.uid()
+        and i.portal_role in ('internal', 'admin')
+    )
+  $sql$
+  into v_has_access;
+
+  return coalesce(v_has_access, false);
+end;
+$$;
+
+create or replace function onboarding.is_admin_user()
+returns boolean
+language plpgsql
+stable
+as $$
+declare
+  v_has_access boolean := false;
+begin
+  if coalesce((auth.jwt() ->> 'role') = 'service_role', false) then
+    return true;
+  end if;
+
+  if coalesce((auth.jwt() -> 'app_metadata' ->> 'portal_role') = 'admin', false) then
+    return true;
+  end if;
+
+  if to_regclass('onboarding.internal_user_access') is null then
+    return false;
+  end if;
+
+  execute $sql$
+    select exists (
+      select 1
+      from onboarding.internal_user_access i
+      where i.auth_user_id = auth.uid()
+        and i.portal_role = 'admin'
+    )
+  $sql$
+  into v_has_access;
+
+  return coalesce(v_has_access, false);
+end;
 $$;
 
 -- Membership checks for RLS
@@ -1882,6 +1938,7 @@ grant execute on function onboarding.public_list_task_states(bigint, uuid) to an
 -- Auth-Required Company Signup Flow
 -- -----------------------------------------------------------------------------
 create extension if not exists pg_trgm;
+create extension if not exists pgcrypto;
 
 create table if not exists onboarding.company_directory (
   id bigint generated always as identity primary key,
@@ -1913,6 +1970,53 @@ create table if not exists onboarding.portal_user_profile (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create table if not exists onboarding.internal_user_access (
+  auth_user_id uuid primary key,
+  email text not null,
+  full_name text,
+  portal_role text not null default 'internal',
+  invited_by_auth_user_id uuid,
+  invite_id bigint,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint internal_user_access_role_check check (portal_role in ('internal', 'admin'))
+);
+
+create table if not exists onboarding.internal_signup_invite (
+  id bigint generated always as identity primary key,
+  invite_token_hash text not null unique,
+  invited_email text not null,
+  invited_full_name text,
+  portal_role text not null default 'internal',
+  invited_by_auth_user_id uuid not null,
+  expires_at timestamptz not null,
+  redeemed_at timestamptz,
+  redeemed_by_auth_user_id uuid,
+  metadata_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint internal_signup_invite_role_check check (portal_role in ('internal', 'admin'))
+);
+
+create index if not exists idx_internal_user_access_role
+  on onboarding.internal_user_access(portal_role);
+
+create index if not exists idx_internal_signup_invite_email
+  on onboarding.internal_signup_invite(lower(invited_email));
+
+create index if not exists idx_internal_signup_invite_expires_at
+  on onboarding.internal_signup_invite(expires_at);
+
+drop trigger if exists trg_internal_user_access_updated_at on onboarding.internal_user_access;
+create trigger trg_internal_user_access_updated_at
+before update on onboarding.internal_user_access
+for each row execute function onboarding.tg_set_updated_at();
+
+drop trigger if exists trg_internal_signup_invite_updated_at on onboarding.internal_signup_invite;
+create trigger trg_internal_signup_invite_updated_at
+before update on onboarding.internal_signup_invite
+for each row execute function onboarding.tg_set_updated_at();
 
 alter table onboarding.onboarding_client
   add column if not exists company_directory_id bigint references onboarding.company_directory(id) on delete set null,
@@ -2627,6 +2731,7 @@ as $$
 declare
   v_auth_user_id uuid := auth.uid();
   v_profile onboarding.portal_user_profile%rowtype;
+  v_portal_role text := case when onboarding.is_admin_user() then 'admin' else 'internal' end;
 begin
   if v_auth_user_id is null then
     raise exception 'Authentication required' using errcode = '28000';
@@ -2645,7 +2750,282 @@ begin
     'auth_user_id', v_auth_user_id,
     'email', coalesce(v_profile.email, auth.jwt() ->> 'email'),
     'full_name', coalesce(v_profile.full_name, auth.jwt() -> 'user_metadata' ->> 'full_name'),
-    'portal_role', coalesce(auth.jwt() -> 'app_metadata' ->> 'portal_role', 'internal')
+    'portal_role', v_portal_role
+  );
+end;
+$$;
+
+create or replace function public.get_internal_signup_invite(
+  p_invite_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_token text := trim(coalesce(p_invite_token, ''));
+  v_token_hash text;
+  v_invite onboarding.internal_signup_invite%rowtype;
+begin
+  if v_token = '' then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex');
+
+  select *
+  into v_invite
+  from onboarding.internal_signup_invite i
+  where i.invite_token_hash = v_token_hash
+  limit 1;
+
+  if not found then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  if v_invite.redeemed_at is not null or v_invite.expires_at <= now() then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'invite_id', v_invite.id,
+    'invited_email', v_invite.invited_email,
+    'invited_full_name', v_invite.invited_full_name,
+    'portal_role', v_invite.portal_role,
+    'expires_at', v_invite.expires_at
+  );
+end;
+$$;
+
+create or replace function public.create_internal_signup_invite(
+  p_email text,
+  p_full_name text default null,
+  p_portal_role text default 'internal',
+  p_expires_in_hours integer default 168,
+  p_invite_base_url text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_email text := lower(trim(coalesce(p_email, '')));
+  v_full_name text := nullif(trim(coalesce(p_full_name, '')), '');
+  v_portal_role text := lower(trim(coalesce(p_portal_role, 'internal')));
+  v_expires_in_hours integer := greatest(1, least(coalesce(p_expires_in_hours, 168), 720));
+  v_expires_at timestamptz := now() + make_interval(hours => v_expires_in_hours);
+  v_token text;
+  v_token_hash text;
+  v_invite_id bigint;
+  v_base_url text;
+  v_invite_url text;
+begin
+  if v_auth_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  if not onboarding.is_admin_user() then
+    raise exception 'Admin access required' using errcode = '42501';
+  end if;
+
+  if v_email = '' then
+    raise exception 'Invite email is required';
+  end if;
+
+  if v_portal_role not in ('internal', 'admin') then
+    raise exception 'Invalid portal role';
+  end if;
+
+  v_token := encode(extensions.gen_random_bytes(24), 'hex');
+  v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex');
+  v_base_url := coalesce(
+    nullif(trim(coalesce(p_invite_base_url, '')), ''),
+    'https://example.com/internal-signup.html'
+  );
+  v_invite_url := case
+    when position('?' in v_base_url) > 0 then v_base_url || '&invite=' || v_token
+    else v_base_url || '?invite=' || v_token
+  end;
+
+  insert into onboarding.internal_signup_invite (
+    invite_token_hash,
+    invited_email,
+    invited_full_name,
+    portal_role,
+    invited_by_auth_user_id,
+    expires_at,
+    metadata_json
+  )
+  values (
+    v_token_hash,
+    v_email,
+    v_full_name,
+    v_portal_role,
+    v_auth_user_id,
+    v_expires_at,
+    jsonb_build_object('created_from', 'create_internal_signup_invite')
+  )
+  returning id into v_invite_id;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'invite_id', v_invite_id,
+    'invite_url', v_invite_url,
+    'invited_email', v_email,
+    'portal_role', v_portal_role,
+    'expires_at', v_expires_at
+  );
+end;
+$$;
+
+create or replace function public.redeem_internal_signup_invite(
+  p_invite_token text,
+  p_full_name text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_token text := trim(coalesce(p_invite_token, ''));
+  v_token_hash text;
+  v_invite onboarding.internal_signup_invite%rowtype;
+  v_session_email text := lower(trim(coalesce(auth.jwt() ->> 'email', '')));
+  v_full_name text := nullif(trim(coalesce(p_full_name, '')), '');
+  v_role text;
+begin
+  if v_auth_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  if v_token = '' then
+    raise exception 'Invite token is required';
+  end if;
+
+  v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex');
+
+  select *
+  into v_invite
+  from onboarding.internal_signup_invite i
+  where i.invite_token_hash = v_token_hash
+  for update;
+
+  if not found then
+    raise exception 'Invite is invalid';
+  end if;
+
+  if v_invite.redeemed_at is not null and v_invite.redeemed_by_auth_user_id = v_auth_user_id then
+    return jsonb_build_object(
+      'status', 'ok',
+      'portal_role', coalesce(v_invite.portal_role, 'internal'),
+      'email', coalesce(v_invite.invited_email, v_session_email)
+    );
+  end if;
+
+  if v_invite.redeemed_at is not null then
+    raise exception 'Invite is already used';
+  end if;
+
+  if v_invite.expires_at <= now() then
+    raise exception 'Invite is expired';
+  end if;
+
+  if v_session_email = '' then
+    raise exception 'Authenticated email is required';
+  end if;
+
+  if lower(trim(v_invite.invited_email)) <> v_session_email then
+    raise exception 'This invite is not for the authenticated email address';
+  end if;
+
+  if v_full_name is null then
+    v_full_name := nullif(trim(coalesce(v_invite.invited_full_name, '')), '');
+  end if;
+
+  if v_full_name is null then
+    v_full_name := nullif(trim(coalesce(auth.jwt() -> 'user_metadata' ->> 'full_name', '')), '');
+  end if;
+
+  if v_full_name is null then
+    v_full_name := split_part(v_session_email, '@', 1);
+  end if;
+
+  insert into onboarding.portal_user_profile (
+    auth_user_id,
+    email,
+    full_name
+  )
+  values (
+    v_auth_user_id,
+    v_session_email,
+    v_full_name
+  )
+  on conflict (auth_user_id)
+  do update set
+    email = excluded.email,
+    full_name = excluded.full_name,
+    updated_at = now();
+
+  select case
+    when exists (
+      select 1
+      from onboarding.internal_user_access i
+      where i.auth_user_id = v_auth_user_id
+        and i.portal_role = 'admin'
+    ) then 'admin'
+    when v_invite.portal_role = 'admin' then 'admin'
+    else 'internal'
+  end
+  into v_role;
+
+  insert into onboarding.internal_user_access (
+    auth_user_id,
+    email,
+    full_name,
+    portal_role,
+    invited_by_auth_user_id,
+    invite_id
+  )
+  values (
+    v_auth_user_id,
+    v_session_email,
+    v_full_name,
+    v_role,
+    v_invite.invited_by_auth_user_id,
+    v_invite.id
+  )
+  on conflict (auth_user_id)
+  do update set
+    email = excluded.email,
+    full_name = excluded.full_name,
+    portal_role = case
+      when onboarding.internal_user_access.portal_role = 'admin' then 'admin'
+      else excluded.portal_role
+    end,
+    invite_id = excluded.invite_id,
+    invited_by_auth_user_id = coalesce(
+      onboarding.internal_user_access.invited_by_auth_user_id,
+      excluded.invited_by_auth_user_id
+    ),
+    updated_at = now();
+
+  update onboarding.internal_signup_invite i
+  set redeemed_at = now(),
+      redeemed_by_auth_user_id = v_auth_user_id,
+      updated_at = now()
+  where i.id = v_invite.id;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'portal_role', v_role,
+    'email', v_session_email,
+    'auth_user_id', v_auth_user_id
   );
 end;
 $$;
@@ -2861,3 +3241,6 @@ grant execute on function public.list_my_task_states() to authenticated, service
 grant execute on function public.upsert_my_task_state(text, boolean, text, text) to authenticated, service_role;
 grant execute on function public.get_internal_portal_context() to authenticated, service_role;
 grant execute on function public.internal_list_onboarding_overview(text, onboarding.onboarding_stage, integer) to authenticated, service_role;
+grant execute on function public.create_internal_signup_invite(text, text, text, integer, text) to authenticated, service_role;
+grant execute on function public.get_internal_signup_invite(text) to anon, authenticated, service_role;
+grant execute on function public.redeem_internal_signup_invite(text, text) to authenticated, service_role;

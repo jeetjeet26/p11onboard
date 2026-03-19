@@ -172,6 +172,10 @@
         color: #cc2e17;
       }
 
+      .auth-message.success {
+        color: var(--green);
+      }
+
       .shell {
         display: none;
       }
@@ -238,6 +242,82 @@
         border: 1px solid var(--border);
         border-radius: 12px;
         overflow: auto;
+      }
+
+      .invite-card {
+        display: none;
+        margin-top: 14px;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+      }
+
+      .invite-card.show {
+        display: block;
+      }
+
+      .invite-title {
+        margin: 0 0 6px;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .invite-copy {
+        margin: 0 0 12px;
+        color: var(--gray);
+        font-size: 12px;
+      }
+
+      .invite-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr;
+        gap: 10px;
+      }
+
+      .invite-field label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--gray);
+      }
+
+      .invite-field input,
+      .invite-field select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 9px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .invite-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .invite-link-row {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .invite-link {
+        flex: 1;
+        min-width: 280px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 9px;
+        font-size: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       }
 
       table {
@@ -324,6 +404,10 @@
         .stats {
           grid-template-columns: 1fr 1fr;
         }
+
+        .invite-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -384,6 +468,44 @@
         <p style="margin:8px 2px 0; color:var(--gray); font-size:12px;">
           Click any community row to open the appropriate onboarding step view.
         </p>
+
+        <section class="invite-card" id="inviteCard">
+          <h2 class="invite-title">Invite Internal Member</h2>
+          <p class="invite-copy">
+            Admin-only. Generate a one-time invite link for internal portal access.
+          </p>
+          <form id="inviteForm">
+            <div class="invite-grid">
+              <div class="invite-field">
+                <label for="inviteEmail">Invite Email</label>
+                <input id="inviteEmail" type="email" required />
+              </div>
+              <div class="invite-field">
+                <label for="inviteFullName">Full Name (optional)</label>
+                <input id="inviteFullName" type="text" />
+              </div>
+              <div class="invite-field">
+                <label for="inviteExpiryHours">Expires (hours)</label>
+                <input id="inviteExpiryHours" type="number" min="1" max="720" value="168" />
+              </div>
+            </div>
+            <div class="invite-actions">
+              <div class="invite-field">
+                <label for="inviteRole">Role</label>
+                <select id="inviteRole">
+                  <option value="internal">Internal</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <button class="submit-btn" id="inviteSubmit" type="submit">Generate Invite Link</button>
+            </div>
+          </form>
+          <div class="invite-link-row">
+            <input class="invite-link" id="inviteLink" type="text" readonly placeholder="Invite link will appear here" />
+            <button class="logout" id="copyInviteBtn" type="button">Copy Link</button>
+          </div>
+          <div class="auth-message" id="inviteMessage"></div>
+        </section>
 
         <div class="stats">
           <div class="stat"><div class="label">Communities</div><div class="value" id="totalCommunities">0</div></div>
