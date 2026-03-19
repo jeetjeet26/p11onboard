@@ -2041,11 +2041,7 @@ begin
     into v_company_directory_id, v_public_company_id, v_company_name
     from onboarding.company_directory cd
     where cd.normalized_name = v_requested_company_normalized
-       or similarity(lower(cd.company_name), lower(v_requested_company_name)) >= 0.72
-    order by
-      case when cd.normalized_name = v_requested_company_normalized then 1 else 0 end desc,
-      similarity(lower(cd.company_name), lower(v_requested_company_name)) desc,
-      cd.id asc
+    order by cd.id asc
     limit 1;
 
     if v_company_directory_id is null then
@@ -2096,7 +2092,17 @@ begin
   into v_onboarding_client_id
   from onboarding.onboarding_client c
   where c.company_directory_id = v_company_directory_id
-  order by c.created_at asc
+    and c.display_name = 'New Community'
+    and c.current_stage = 'contract_signed'
+    and c.status = 'draft'
+    and (c.owner_auth_user_id is null or c.owner_auth_user_id = v_auth_user_id)
+    and not exists (
+      select 1
+      from onboarding.onboarding_submission s
+      where s.onboarding_client_id = c.id
+        and s.submission_status in ('submitted', 'resubmitted')
+    )
+  order by c.updated_at desc, c.id desc
   limit 1;
 
   if v_onboarding_client_id is null then

@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P11creative | Client Home</title>
+    <style>
+      :root {
+        --red: #fa4614;
+        --charcoal: #1a1a1a;
+        --bg: #f5f5f3;
+        --white: #ffffff;
+        --border: #e3e2df;
+        --gray: #767676;
+        --green: #1a9e6a;
+        --amber: #e08000;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--charcoal);
+      }
+
+      .header {
+        background: var(--charcoal);
+        color: white;
+        border-bottom: 3px solid var(--red);
+        padding: 14px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: var(--red);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 12px;
+      }
+
+      .brand-title {
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .brand-title span {
+        color: var(--red);
+      }
+
+      .brand-sub {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .nav a {
+        color: rgba(255, 255, 255, 0.85);
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        padding: 6px 11px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .nav a.active {
+        background: var(--red);
+        border-color: var(--red);
+      }
+
+      .main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 20px 40px;
+      }
+
+      .auth-card {
+        max-width: 460px;
+        margin: 26px auto;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 22px;
+      }
+
+      .auth-card.hide {
+        display: none;
+      }
+
+      .auth-card h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      .auth-card p {
+        margin: 0 0 16px;
+        color: var(--gray);
+        line-height: 1.55;
+      }
+
+      .field {
+        margin-bottom: 12px;
+      }
+
+      .field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 5px;
+      }
+
+      .field input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 11px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+
+      .field input:focus {
+        outline: none;
+        border-color: var(--red);
+        box-shadow: 0 0 0 2px rgba(250, 70, 20, 0.08);
+      }
+
+      .submit-btn {
+        border: none;
+        border-radius: 8px;
+        background: var(--red);
+        color: white;
+        font-size: 13px;
+        font-weight: 800;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .auth-message {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--gray);
+        min-height: 16px;
+      }
+
+      .auth-message.error {
+        color: #cc2e17;
+      }
+
+      .auth-link {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--gray);
+      }
+
+      .auth-link a {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      .shell {
+        display: none;
+      }
+
+      .shell.show {
+        display: block;
+      }
+
+      .toolbar {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .session {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--gray);
+      }
+
+      .logout {
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 7px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .summary {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 10px;
+      }
+
+      .summary-card,
+      .stat,
+      .table-wrap {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+
+      .summary-card {
+        padding: 14px;
+      }
+
+      .summary-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .summary-row:last-child {
+        border-bottom: none;
+      }
+
+      .summary-label {
+        font-size: 12px;
+        color: var(--gray);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .summary-value {
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .stats {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .stat {
+        padding: 12px;
+      }
+
+      .stat .label {
+        font-size: 11px;
+        color: var(--gray);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .stat .value {
+        margin-top: 4px;
+        font-size: 21px;
+        font-weight: 900;
+      }
+
+      .helper {
+        margin: 10px 2px 0;
+        color: var(--gray);
+        font-size: 12px;
+      }
+
+      .table-wrap {
+        margin-top: 14px;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+
+      th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--gray);
+      }
+
+      #communityBody tr[data-onboarding-client-id] {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+
+      #communityBody tr[data-onboarding-client-id]:hover {
+        background: rgba(250, 70, 20, 0.06);
+      }
+
+      #communityBody tr[data-onboarding-client-id]:focus-visible {
+        outline: 2px solid rgba(250, 70, 20, 0.35);
+        outline-offset: -2px;
+      }
+
+      #communityBody tr[data-onboarding-client-id].is-opening {
+        opacity: 0.6;
+      }
+
+      .empty-cell {
+        color: var(--gray);
+      }
+
+      .pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 800;
+        border-radius: 999px;
+        padding: 3px 8px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .pill.stage {
+        background: rgba(250, 70, 20, 0.12);
+        color: var(--red);
+      }
+
+      .pill.submitted,
+      .pill.resubmitted,
+      .pill.in_review,
+      .pill.approved,
+      .pill.go_live {
+        background: rgba(26, 158, 106, 0.12);
+        color: var(--green);
+      }
+
+      .pill.draft,
+      .pill.pending {
+        background: rgba(224, 128, 0, 0.14);
+        color: var(--amber);
+      }
+
+      .pill.active {
+        background: rgba(45, 45, 45, 0.1);
+        color: var(--charcoal);
+      }
+
+      @media (max-width: 920px) {
+        .summary {
+          grid-template-columns: 1fr;
+        }
+
+        .stats {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <div class="mark">P11</div>
+        <div>
+          <div class="brand-title">P11<span>creative</span></div>
+          <div class="brand-sub">Client Home</div>
+        </div>
+      </div>
+      <nav class="nav" aria-label="App Navigation">
+        <a href="/">Home</a>
+        <a class="active" href="/client-home.html">Client Home</a>
+        <a href="/p11-onboarding-dashboard.html">Dashboard</a>
+        <a href="/p11-onboarding-account-access.html">Account Access</a>
+        <a href="/internal.html">Internal Portal</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section class="auth-card" id="authCard">
+        <h1>Client Access</h1>
+        <p>Log in to view all communities tied to your company account and quickly jump into any onboarding flow.</p>
+        <form id="clientLoginForm">
+          <div class="field">
+            <label for="clientEmail">Email</label>
+            <input id="clientEmail" type="email" required />
+          </div>
+          <div class="field">
+            <label for="clientPassword">Password</label>
+            <input id="clientPassword" type="password" required />
+          </div>
+          <button class="submit-btn" id="clientLoginSubmit" type="submit">Log In</button>
+          <div class="auth-message" id="clientAuthMessage"></div>
+          <div class="auth-link">
+            Need an account? <a href="/p11-onboarding-dashboard.html">Use the dashboard signup flow</a>.
+          </div>
+        </form>
+      </section>
+
+      <section class="shell" id="clientShell">
+        <div class="toolbar">
+          <button class="submit-btn" id="addCommunityBtn" type="button">Add Community</button>
+          <button class="submit-btn" id="refreshBtn" type="button">Refresh</button>
+          <button class="logout" id="logoutBtn" type="button">Log Out</button>
+          <span class="session" id="sessionInfo"></span>
+        </div>
+
+        <div class="summary">
+          <div class="summary-card">
+            <div class="summary-row">
+              <span class="summary-label">Company</span>
+              <span class="summary-value" id="companyName">None</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Communities</span>
+              <span class="summary-value" id="communityCount">0</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Active Community</span>
+              <span class="summary-value" id="activeCommunity">None</span>
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Add another community</div>
+            <p style="margin: 6px 0 0; color: var(--gray); font-size: 13px; line-height: 1.5;">
+              Click <strong>Add Community</strong>, then submit intake with a different Community Name.
+              If no communities exist yet, your first submission creates one.
+            </p>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="label">Communities</div><div class="value" id="totalCommunities">0</div></div>
+          <div class="stat"><div class="label">In Intake</div><div class="value" id="intakeCount">0</div></div>
+          <div class="stat"><div class="label">Awaiting Access</div><div class="value" id="accessCount">0</div></div>
+          <div class="stat"><div class="label">Go Live</div><div class="value" id="goLiveCount">0</div></div>
+        </div>
+
+        <p class="helper">Click any community row to open its onboarding workspace.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Community</th>
+                <th>Stage</th>
+                <th>Status</th>
+                <th>Target Go Live</th>
+                <th>Last Submission</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="communityBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./frontend/src/client-home-main.js"></script>
+  </body>
+</html>

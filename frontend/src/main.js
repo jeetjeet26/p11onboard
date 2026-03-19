@@ -605,7 +605,7 @@ function applySnapshot(snapshot) {
     snapshot.current_stage === "contract_signed" &&
     snapshot.status === "draft";
   const communityName = isNascentContext
-    ? "Nascent Onboarding"
+    ? "Onboard"
     : snapshot.community_name || snapshot.display_name || "New Community";
   if (nameEl) nameEl.textContent = communityName;
   if (companyEl) companyEl.textContent = snapshot.company_name || "Not selected";
@@ -898,7 +898,7 @@ function buildCommunityOptionLabel(community) {
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
   const baseName = isNascent
-    ? "Nascent Onboarding"
+    ? "Onboard"
     : community.community_name || "Unnamed Community";
   return `${baseName} (${stage})`;
 }
@@ -1683,6 +1683,25 @@ function initializeAccessVisuals() {
   });
 }
 
+function maybePrepareForNewCommunity() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("startNewCommunity") !== "1") return;
+
+  const communityNameField = findFieldGroupByLabel("Community Name");
+  const communityNameInput = communityNameField?.querySelector("input, textarea");
+  if (communityNameInput) {
+    communityNameInput.value = "";
+    communityNameInput.dispatchEvent(new Event("input", { bubbles: true }));
+    communityNameInput.dispatchEvent(new Event("change", { bubbles: true }));
+    communityNameInput.focus();
+  }
+
+  window.history.replaceState({}, "", window.location.pathname);
+  alert(
+    "To add another community, enter a different Community Name and submit the intake form."
+  );
+}
+
 function initialize() {
   initializeServiceChipMetadata();
   initializeAccessVisuals();
@@ -1691,10 +1710,11 @@ function initialize() {
   initializeTaskSyncHandlers();
   initializeCommunitySwitcher();
   calcProg();
-  bootstrapAuth().then(() => {
+  bootstrapAuth().then(async () => {
     if (state.session) {
-      bootstrapFromRemote();
+      await bootstrapFromRemote();
     }
+    maybePrepareForNewCommunity();
   });
 }
 
