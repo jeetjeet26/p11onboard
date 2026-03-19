@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P11creative | Onboarding Step 3 - Account Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red: #FA4614;
+      --red-light: rgba(250, 70, 20, 0.08);
+      --charcoal: #1A1A1A;
+      --charcoal2: #2D2D2D;
+      --gray: #767676;
+      --gray-light: #ABABAB;
+      --border: #E3E2DF;
+      --bg: #F5F5F3;
+      --white: #FFFFFF;
+      --green: #1A9E6A;
+      --green-bg: rgba(26, 158, 106, 0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--charcoal);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .header {
+      background: var(--charcoal);
+      padding: 0 44px;
+      display: flex;
+      align-items: stretch;
+      min-height: 68px;
+      border-bottom: 3px solid var(--red);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 16px 0;
+    }
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-mark {
+      width: 40px;
+      height: 40px;
+      background: var(--red);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 900;
+      color: white;
+      letter-spacing: -0.5px;
+      flex-shrink: 0;
+    }
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .logo-name {
+      font-size: 17px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.3px;
+    }
+    .logo-name span { color: var(--red); }
+    .logo-sub {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.38);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+    }
+    .header-divider {
+      width: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 14px 20px;
+    }
+    .header-tagline {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      align-self: center;
+    }
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 20px;
+      flex-wrap: wrap;
+    }
+    .header-nav-link {
+      text-decoration: none;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      padding: 6px 11px;
+    }
+    .header-nav-link.active {
+      background: var(--red);
+      border-color: var(--red);
+      color: white;
+    }
+    .header-nav-link.internal-only-nav { display: none; }
+    body.internal-user .header-nav-link.internal-only-nav { display: inline-flex; }
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 0;
+    }
+    .session-info {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 12px;
+      font-weight: 600;
+      min-height: 34px;
+    }
+    .logout-btn {
+      padding: 8px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: transparent;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: inherit;
+    }
+
+    .client-bar {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 11px 44px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .cb-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gray-light);
+    }
+    .cb-company {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--charcoal);
+    }
+    .cb-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--charcoal);
+    }
+    .cb-switch-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cb-switch-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gray-light);
+    }
+    .cb-switch {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: white;
+      color: var(--charcoal);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 9px;
+      min-width: 220px;
+      font-family: inherit;
+    }
+    .cb-switch:focus {
+      outline: none;
+      border-color: var(--red);
+      box-shadow: 0 0 0 2px rgba(250, 70, 20, 0.08);
+    }
+    .cb-live {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--gray);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cb-live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+    .cb-live strong { color: var(--charcoal); font-weight: 700; }
+
+    .main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 28px 44px;
+    }
+
+    .tracker-card {
+      background: white;
+      border-radius: 10px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--border);
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--gray-light);
+      margin-bottom: 22px;
+    }
+    .tracker { display: flex; align-items: center; }
+    .connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      transition: background 0.4s;
+    }
+    .connector.done { background: var(--charcoal); }
+    .connector.active { background: linear-gradient(to right, var(--charcoal) 30%, var(--border)); }
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stage.is-clickable .stage-dot,
+    .stage.is-clickable .stage-name {
+      cursor: pointer;
+    }
+    .stage-dot {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      color: var(--gray-light);
+      transition: all 0.3s;
+      position: relative;
+      z-index: 2;
+      font-weight: 700;
+    }
+    .stage-dot.done {
+      background: var(--charcoal);
+      border-color: var(--charcoal);
+      color: white;
+      font-size: 16px;
+    }
+    .stage-dot.active {
+      background: var(--red);
+      border-color: var(--red);
+      color: white;
+      box-shadow: 0 0 0 5px rgba(250, 70, 20, 0.15);
+      animation: redglow 2s infinite;
+    }
+    @keyframes redglow {
+      0%, 100% { box-shadow: 0 0 0 5px rgba(250, 70, 20, 0.15); }
+      50% { box-shadow: 0 0 0 10px rgba(250, 70, 20, 0.06); }
+    }
+    .stage-name {
+      margin-top: 9px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--gray-light);
+      text-align: center;
+      max-width: 70px;
+      line-height: 1.4;
+      letter-spacing: 0.01em;
+      user-select: none;
+    }
+    .stage-name.done { color: var(--charcoal); font-weight: 700; }
+    .stage-name.active { color: var(--red); font-weight: 800; }
+
+    .step-callout {
+      margin-top: 22px;
+      padding: 14px 18px;
+      background: var(--red-light);
+      border-left: 3px solid var(--red);
+      border-radius: 0 6px 6px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .sc-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
+    .step-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--charcoal);
+      margin-bottom: 3px;
+    }
+    .step-text {
+      font-size: 12px;
+      color: var(--gray);
+      line-height: 1.65;
+    }
+
+    .access-card {
+      background: var(--white);
+      border-radius: 10px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--border);
+    }
+    .access-title {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.2px;
+      color: var(--charcoal);
+      margin-bottom: 6px;
+    }
+    .access-sub {
+      font-size: 12.5px;
+      color: var(--gray);
+      line-height: 1.65;
+      margin-bottom: 16px;
+    }
+
+    .progress-wrap { margin-bottom: 14px; }
+    .progress-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gray-light);
+      margin-bottom: 6px;
+    }
+    .progress-text {
+      font-size: 12px;
+      color: var(--gray);
+      margin-bottom: 7px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--red);
+      transition: width 0.3s ease;
+    }
+
+    .save-controls {
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .save-btn {
+      border: 1px solid var(--red);
+      background: var(--red);
+      color: var(--white);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      font-family: inherit;
+    }
+    .save-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .save-status {
+      font-size: 12px;
+      color: var(--gray);
+      min-height: 18px;
+    }
+    .save-status.pending { color: var(--charcoal2); }
+    .save-status.success { color: var(--green); }
+    .save-status.error { color: #b31b00; }
+
+    .platform-list {
+      display: grid;
+      gap: 9px;
+    }
+    .platform-row {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .platform-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--charcoal);
+    }
+    .platform-meta {
+      margin-top: 3px;
+      font-size: 11px;
+      color: var(--gray-light);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .platform-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .guide-link {
+      text-decoration: none;
+      border: 1px solid rgba(250, 70, 20, 0.3);
+      color: var(--red);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .guide-link.muted {
+      border-color: var(--border);
+      color: var(--gray-light);
+      pointer-events: none;
+    }
+    .done-toggle {
+      font-size: 12px;
+      color: var(--charcoal2);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .done-toggle input {
+      width: 16px;
+      height: 16px;
+    }
+
+    .empty-state {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+      color: var(--gray);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .footer-links {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .link-btn {
+      text-decoration: none;
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .link-btn.primary {
+      background: var(--red);
+      color: white;
+    }
+    .link-btn.secondary {
+      border: 1px solid var(--border);
+      color: var(--charcoal);
+      background: var(--white);
+    }
+
+    @media (max-width: 768px) {
+      .header { padding: 14px 20px; flex-wrap: wrap; gap: 12px; }
+      .header-divider, .header-tagline { display: none; }
+      .header-nav { margin-left: 0; width: 100%; }
+      .header-right { margin-left: 0; width: 100%; justify-content: flex-end; padding: 0; }
+      .session-info { flex: 1; }
+      .client-bar { padding: 12px 20px; }
+      .main { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-block">
+        <div class="logo-mark">P11</div>
+        <div class="logo-text">
+          <div class="logo-name">P11<span>creative</span></div>
+          <div class="logo-sub">Client Onboarding Portal</div>
+        </div>
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-tagline">Amplified Real Estate Marketing</div>
+      <nav class="header-nav" aria-label="App Navigation">
+        <a class="header-nav-link active" href="/p11-onboarding-dashboard.html">Dashboard</a>
+        <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/internal.html">Internal Portal</a>
+        <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-automation-flow.html">Automation Flow</a>
+        <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-project-brief.html">Project Brief</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <span class="session-info" id="sessionInfo"></span>
+      <button class="logout-btn" id="logoutBtn" type="button">Log Out</button>
+    </div>
+  </header>
+
+  <div class="client-bar">
+    <span class="cb-label">Company</span>
+    <span class="cb-company" id="displayCompany">Not selected</span>
+    <span class="cb-label">Community</span>
+    <span class="cb-name" id="displayName">Community</span>
+    <div class="cb-switch-wrap">
+      <span class="cb-switch-label">Switch</span>
+      <select class="cb-switch" id="communitySwitcher" aria-label="Switch active community">
+        <option value="">Select a community...</option>
+      </select>
+    </div>
+    <div class="cb-live">
+      <div class="cb-live-dot"></div>
+      Target Go-Live: <strong id="displayGoLive">TBD</strong>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <section class="tracker-card">
+      <div class="section-label">Onboarding Progress</div>
+      <div class="tracker">
+        <div class="stage">
+          <div class="stage-dot" id="s1">1</div>
+          <div class="stage-name" id="sn1">Contract<br>Signed</div>
+        </div>
+        <div class="connector" id="c1"></div>
+        <div class="stage">
+          <div class="stage-dot" id="s2">2</div>
+          <div class="stage-name" id="sn2">Intake<br>Form</div>
+        </div>
+        <div class="connector" id="c2"></div>
+        <div class="stage">
+          <div class="stage-dot active" id="s3">3</div>
+          <div class="stage-name active" id="sn3">Account<br>Access</div>
+        </div>
+        <div class="connector" id="c3"></div>
+        <div class="stage">
+          <div class="stage-dot" id="s4">4</div>
+          <div class="stage-name" id="sn4">Creative<br>Kickoff</div>
+        </div>
+        <div class="connector" id="c4"></div>
+        <div class="stage">
+          <div class="stage-dot" id="s5">5</div>
+          <div class="stage-name" id="sn5">Campaign<br>Build</div>
+        </div>
+        <div class="connector" id="c5"></div>
+        <div class="stage">
+          <div class="stage-dot" id="s6">6</div>
+          <div class="stage-name" id="sn6">Pre-Launch<br>Review</div>
+        </div>
+        <div class="connector" id="c6"></div>
+        <div class="stage">
+          <div class="stage-dot" id="s7">🚀</div>
+          <div class="stage-name" id="sn7">Go<br>Live</div>
+        </div>
+      </div>
+      <div class="step-callout">
+        <span class="sc-icon">⏳</span>
+        <div>
+          <div class="step-title" id="stepTitle">Step 3 of 7 — Account Access</div>
+          <div class="step-text" id="stepText">Grant access to the selected platforms below so implementation can begin.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="access-card">
+      <div class="access-title">Account Access Checklist</div>
+      <div class="access-sub">
+        This list is data-driven from the platforms selected in Step 2 intake.
+        Mark each platform complete after granting access to P11creative.
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-label">Step 3 Platform Access Completion</div>
+        <div class="progress-text" id="progressText">Step 3 progress: 0/0 platforms marked complete</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+
+      <div class="save-controls">
+        <button class="save-btn" id="saveProgressBtn" type="button" disabled>Save Progress</button>
+        <span class="save-status" id="saveStatus" aria-live="polite"></span>
+      </div>
+
+      <div class="platform-list" id="platformList"></div>
+
+      <div class="footer-links">
+        <a class="link-btn secondary" href="/p11-onboarding-dashboard.html">Back to Step 2 Intake</a>
+        <a class="link-btn primary" href="/p11-onboarding-dashboard.html">Return to Dashboard</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="./frontend/src/account-access-main.js"></script>
+</body>
+</html>

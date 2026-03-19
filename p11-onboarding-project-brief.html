@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P11creative | Onboarding Project Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:#FA4614; --red-bg:rgba(250,70,20,0.07);
+  --charcoal:#1A1A1A; --c3:#444;
+  --gray:#767676; --lg:#ABABAB;
+  --border:#E3E2DF; --bg:#F5F5F3; --white:#FFFFFF;
+  --green:#1A9E6A; --green-bg:rgba(26,158,106,0.08);
+  --blue:#1D4ED8; --blue-bg:rgba(29,78,216,0.08);
+  --amber:#D97706; --amber-bg:rgba(217,119,6,0.09);
+  --purple:#6D28D9; --purple-bg:rgba(109,40,217,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--charcoal); -webkit-font-smoothing:antialiased; }
+
+.header {
+  background:var(--charcoal); padding:0 44px; min-height:62px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:3px solid var(--red);
+}
+.logo-name { font-size:16px; font-weight:800; color:white; }
+.logo-name span { color:var(--red); }
+.logo-sub { font-size:10px; color:rgba(255,255,255,0.3); margin-top:1px; letter-spacing:0.07em; }
+.date-badge {
+  font-size:11px; font-weight:700; color:rgba(255,255,255,0.4);
+  border:1px solid rgba(255,255,255,0.15); padding:5px 14px; border-radius:4px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.header-nav a {
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.82);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+.header-nav a.active {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+}
+
+.main { max-width:900px; margin:0 auto; padding:32px 44px; }
+
+/* cards */
+.card {
+  background:white; border:1px solid var(--border); border-radius:10px;
+  padding:26px 30px; margin-bottom:20px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+.card-title {
+  font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em;
+  color:var(--lg); margin-bottom:16px; display:flex; align-items:center; gap:10px;
+}
+.card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+h2 { font-size:18px; font-weight:900; color:var(--charcoal); margin-bottom:6px; letter-spacing:-0.2px; }
+p  { font-size:13px; color:var(--gray); line-height:1.7; }
+
+/* status pills */
+.pill {
+  display:inline-block; font-size:10px; font-weight:800; padding:3px 10px;
+  border-radius:3px; text-transform:uppercase; letter-spacing:0.05em;
+}
+.pill-done   { background:var(--green-bg); color:var(--green); }
+.pill-next   { background:var(--red-bg); color:var(--red); }
+.pill-phase2 { background:var(--purple-bg); color:var(--purple); }
+.pill-note   { background:var(--amber-bg); color:var(--amber); }
+
+/* deliverables */
+.deliverable {
+  display:flex; align-items:flex-start; gap:14px; padding:14px 0;
+  border-bottom:1px solid var(--border);
+}
+.deliverable:last-child { border-bottom:none; }
+.del-icon {
+  width:40px; height:40px; border-radius:8px; background:var(--bg);
+  border:1px solid var(--border); display:flex; align-items:center;
+  justify-content:center; font-size:18px; flex-shrink:0;
+}
+.del-name { font-size:13px; font-weight:800; color:var(--charcoal); margin-bottom:2px; }
+.del-desc { font-size:12px; color:var(--gray); line-height:1.5; }
+
+/* checklist */
+.check-row { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.check-row:last-child { border-bottom:none; }
+.ck { width:18px; height:18px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; margin-top:1px; }
+.ck-done { background:var(--charcoal); color:white; }
+.ck-next { background:var(--red-bg); color:var(--red); border:1.5px solid var(--red); font-size:10px; }
+.ck-future { background:var(--bg); color:var(--lg); border:1.5px solid var(--border); }
+.ck-text { font-size:12.5px; color:var(--c3); flex:1; line-height:1.45; }
+.ck-text.done { color:var(--lg); text-decoration:line-through; }
+.ck-tag { font-size:10px; font-weight:700; white-space:nowrap; color:var(--gray); }
+
+/* prompt box */
+.prompt-box {
+  background:var(--charcoal); border-radius:10px; padding:22px 26px;
+  border-left:4px solid var(--red); position:relative;
+}
+.prompt-label {
+  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em;
+  color:rgba(255,255,255,0.35); margin-bottom:12px;
+}
+.prompt-text {
+  font-size:13px; color:rgba(255,255,255,0.85); line-height:1.75;
+  white-space:pre-wrap; font-family:'Inter',system-ui,sans-serif;
+}
+.copy-btn {
+  position:absolute; top:16px; right:16px;
+  background:var(--red); color:white; border:none; border-radius:5px;
+  font-size:11px; font-weight:700; padding:6px 14px; cursor:pointer;
+  font-family:inherit; text-transform:uppercase; letter-spacing:0.05em;
+  transition:all 0.2s;
+}
+.copy-btn:hover { background:#d93c0e; }
+
+/* context table */
+.ctx-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.ctx-table td { padding:9px 14px; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.5; }
+.ctx-table tr:last-child td { border-bottom:none; }
+.ctx-table td:first-child { font-weight:700; color:var(--charcoal); width:200px; white-space:nowrap; }
+.ctx-table td:last-child { color:var(--c3); }
+
+/* note callout */
+.note { display:flex; gap:10px; padding:13px 16px; border-radius:8px; font-size:12.5px; line-height:1.65; margin-bottom:12px; }
+.note-red { background:var(--red-bg); border-left:3px solid var(--red); }
+.note-blue { background:var(--blue-bg); border-left:3px solid var(--blue); }
+.note-green { background:var(--green-bg); border-left:3px solid var(--green); }
+
+.footer {
+  background:var(--charcoal); border-top:2px solid var(--red);
+  padding:16px 44px; display:flex; justify-content:space-between; align-items:center;
+  font-size:11px; color:rgba(255,255,255,0.3); margin-top:40px;
+}
+.footer strong { color:white; }
+.footer-tag { color:var(--red); font-weight:700; text-transform:uppercase; letter-spacing:0.1em; }
+
+@media (max-width:768px) {
+  .header, .main, .footer { padding-left:20px; padding-right:20px; }
+  .header { align-items: flex-start; padding-top: 14px; padding-bottom: 14px; }
+  .header-right { justify-content: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="logo-name">P11<span>creative</span></div>
+    <div class="logo-sub">Onboarding Project — Status Brief</div>
+  </div>
+  <div class="header-right">
+    <nav class="header-nav" aria-label="App Navigation">
+      <a href="/">Home</a>
+      <a href="/p11-onboarding-dashboard.html">Dashboard</a>
+      <a href="/internal.html">Internal Portal</a>
+      <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
+      <a class="active" href="/p11-onboarding-project-brief.html">Project Brief</a>
+    </nav>
+    <div class="date-badge">Last Updated: March 17, 2026</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- PROJECT SUMMARY -->
+  <div class="card">
+    <div class="card-title">Project Overview</div>
+    <h2>New Client Onboarding System</h2>
+    <p style="margin-top:8px;">Bri (VP of Digital Marketing) is building a streamlined onboarding system for P11creative that reduces manual work, gives clients a clear progress experience (Dominos-style tracker), and integrates with Accelo, Basecamp, Dropbox, Google Drive, and Softr via automation.</p>
+    <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+      <span class="pill pill-done">Phase 1 Complete: Dashboard + Automation Blueprint</span>
+      <span class="pill pill-next">Up Next: Automation Build + Team Review</span>
+    </div>
+  </div>
+
+  <!-- DELIVERABLES BUILT -->
+  <div class="card">
+    <div class="card-title">Deliverables Built This Session</div>
+
+    <div class="deliverable">
+      <div class="del-icon">🖥️</div>
+      <div>
+        <div class="del-name">p11-onboarding-dashboard.html</div>
+        <div class="del-desc">Fully branded interactive onboarding portal. Toggle between <strong>Client View</strong> (Dominos-style progress tracker, action items, timeline, and full intake questionnaire) and <strong>Team View</strong> (stats snapshot, team assignments, quick links, and a full tabbed task checklist by service). Built with P11creative brand: charcoal base, P11 Red #FA4614 accents, Inter font.</div>
+      </div>
+    </div>
+
+    <div class="deliverable">
+      <div class="del-icon">⚡</div>
+      <div>
+        <div class="del-name">p11-onboarding-automation-flow.html</div>
+        <div class="del-desc">Full Zapier / Make.com automation blueprint. Covers 4 Zaps: (1) Master Intake Handler — 12-step automation that fires on form submission to create Accelo records, Basecamp project, Dropbox folders, Google Drive files, Softr portal, kickoff email, and Slack notification. (2) 48-hour access reminder sequence. (3) Ad copy approval loop. (4) Launch day automation. Includes prioritized build order and implementation notes.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTEXT TABLE -->
+  <div class="card">
+    <div class="card-title">Key Project Context</div>
+    <table class="ctx-table">
+      <tr><td>Owner</td><td>Bri — VP of Digital Marketing, P11creative</td></tr>
+      <tr><td>Goal</td><td>Reduce manual onboarding work; give clients a clear, trackable experience from contract signing to go-live</td></tr>
+      <tr><td>Client-facing tool</td><td>Softr portal (clients.p11.com) — existing platform P11 already uses</td></tr>
+      <tr><td>Project mgmt</td><td>Basecamp (internal), Accelo (billing + project tracking)</td></tr>
+      <tr><td>Asset storage</td><td>Dropbox (public client folder) + P11 Google Drive (campaign sheets)</td></tr>
+      <tr><td>Current form tool</td><td>Jotform — submissions sent to p11creative@gmail.com. Decision pending on whether to migrate to native Softr form.</td></tr>
+      <tr><td>P11 access email</td><td>p11creative@gmail.com — all platform admin invites sent here</td></tr>
+      <tr><td>Brand colors</td><td>P11 Red #FA4614 (use sparingly), Charcoal #1A1A1A, White, Off-white #F5F5F3</td></tr>
+      <tr><td>Services offered</td><td>Paid Search (SEM), Paid Social (Meta), SEO, Display/Remarketing, Email Marketing, CTV, ILS Management (Zillow/CoStar), Reporting & Analytics</td></tr>
+      <tr><td>Accelo Template IDs</td><td>SEO: 367, SEM: 396, Paid Social: 369, Organic Social: 371, Email: 368, ILS: 374, Media Planning: 373, Creative: 370, Google Ads Audit: 407, Reporting Audit: 408</td></tr>
+      <tr><td>Standard platforms needed</td><td>Google Ads, GA4, GTM, Google Search Console, Google Business Profile, Meta Pages, Meta Ads Manager, Website CMS, CRM</td></tr>
+      <tr><td>Onboarding stages (tracker)</td><td>1. Contract Signed → 2. Intake Form → 3. Account Access → 4. Creative Kickoff → 5. Campaign Build → 6. Pre-Launch Review → 7. GO LIVE</td></tr>
+      <tr><td>Typical timeline</td><td>Contract → Go-Live = 13+ business days. Biggest bottleneck = client granting platform access (5–7 days dependent on client).</td></tr>
+      <tr><td>Source documents reviewed</td><td>Digital Marketing Onboarding Workflow System (flowchart), New Client Onboarding Policy & Procedure doc, Las Brisas Questionnaire example (Jotform submission via Gmail)</td></tr>
+    </table>
+  </div>
+
+  <!-- PROGRESS CHECKLIST -->
+  <div class="card">
+    <div class="card-title">Full Project Checklist — Where Things Stand</div>
+
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); margin-bottom:10px; margin-top:4px;">Phase 1 — Design &amp; Planning</div>
+    <div class="check-row"><div class="ck ck-done">✓</div><span class="ck-text done">Review existing onboarding process (3 source docs uploaded and analyzed)</span></div>
+    <div class="check-row"><div class="ck ck-done">✓</div><span class="ck-text done">Build client-facing onboarding dashboard with Dominos-style progress tracker</span></div>
+    <div class="check-row"><div class="ck ck-done">✓</div><span class="ck-text done">Build internal team view with full tabbed checklist by service</span></div>
+    <div class="check-row"><div class="ck ck-done">✓</div><span class="ck-text done">Build intake questionnaire (7 sections, service-specific conditional questions)</span></div>
+    <div class="check-row"><div class="ck ck-done">✓</div><span class="ck-text done">Apply P11creative brand (Red #FA4614, charcoal, Inter font, footer tagline)</span></div>
+    <div class="check-row"><div class="ck ck-done">✓</div><span class="ck-text done">Map full automation architecture — 4 Zaps with step-by-step logic</span></div>
+    <div class="check-row"><div class="ck ck-done">✓</div><span class="ck-text done">Build prioritized automation implementation guide</span></div>
+
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); margin:16px 0 10px;">Phase 2 — Team Review &amp; Refinement (Up Next)</div>
+    <div class="check-row"><div class="ck ck-next">→</div><span class="ck-text"><strong>Share dashboard with Account Managers and Digital Lead</strong> — validate task checklist, owner assignments, and service-specific items</span><span class="ck-tag">Bri</span></div>
+    <div class="check-row"><div class="ck ck-next">→</div><span class="ck-text"><strong>Decide: keep Jotform or migrate intake to native Softr form</strong> — this determines how Zap 1 is built</span><span class="ck-tag">Bri + Ops</span></div>
+    <div class="check-row"><div class="ck ck-next">→</div><span class="ck-text"><strong>Alex to set up standard Dropbox subfolder structure</strong> — flagged as pending in original workflow doc</span><span class="ck-tag">Alex</span></div>
+    <div class="check-row"><div class="ck ck-next">→</div><span class="ck-text"><strong>Add real URLs to dashboard Quick Links</strong> — Accelo, Basecamp, Dropbox, Google Drive, Softr links are currently placeholder "#"</span><span class="ck-tag">Bri / AM</span></div>
+    <div class="check-row"><div class="ck ck-next">→</div><span class="ck-text"><strong>Refine pre-launch QA checklist</strong> with Digital Lead (Kevin / Russell) to confirm all items are accurate</span><span class="ck-tag">Digital Team</span></div>
+
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); margin:16px 0 10px;">Phase 3 — Automation Build</div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Form submission → Slack new client notification (easiest, 30 min)</span><span class="ck-tag">Quick win</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Form submission → Basecamp project + service-specific to-do lists</span><span class="ck-tag">Highest impact</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Form submission → Accelo company + retainer using template IDs</span><span class="ck-tag">High impact</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Form submission → Dropbox folder + subfolders auto-creation</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Form submission → Kickoff email draft auto-populated for AM review</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Form submission → Softr client portal user + community setup</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: 48-hour access reminder sequence</span><span class="ck-tag">Phase 2</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Google Drive folder + template copy automation (Make.com)</span><span class="ck-tag">Phase 2</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Basecamp stage completion → Softr tracker advancement</span><span class="ck-tag">Phase 3</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Build Zap: Launch day → live confirmation email + Google Drive archiving</span><span class="ck-tag">Phase 3</span></div>
+
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); margin:16px 0 10px;">Phase 4 — Go Live</div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Pilot the dashboard with one real incoming client</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Gather feedback from client + AM; refine</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Roll out as standard onboarding process for all new clients</span></div>
+    <div class="check-row"><div class="ck ck-future">·</div><span class="ck-text">Document final SOP and add to P11 knowledge base / Softr</span></div>
+  </div>
+
+  <!-- OPEN QUESTIONS -->
+  <div class="card">
+    <div class="card-title">Open Questions to Resolve</div>
+    <div class="check-row"><div class="ck ck-next">?</div><span class="ck-text"><strong>Jotform or Softr form?</strong> — This is the most important decision before building any automation. Native Softr form keeps everything in one tool and feeds directly into the portal. Jotform is already in use and familiar to the team.</span></div>
+    <div class="check-row"><div class="ck ck-next">?</div><span class="ck-text"><strong>Who owns the automation build?</strong> — Bri, an ops person, or an outside Zapier consultant? The blueprint is written for a mid-level Zapier user. Phase 3 automations may need a developer for the Accelo API and Softr REST API steps.</span></div>
+    <div class="check-row"><div class="ck ck-next">?</div><span class="ck-text"><strong>Should the client-facing dashboard live inside Softr or as a standalone page?</strong> — The current HTML file can be hosted on P11.com or embedded into Softr. What's the preferred client experience?</span></div>
+    <div class="check-row"><div class="ck ck-next">?</div><span class="ck-text"><strong>How should sensitive credentials (CMS logins, CRM passwords) be collected?</strong> — Currently a plain text field in the questionnaire. Consider a secure form or 1Password vault share instead.</span></div>
+  </div>
+
+  <!-- STARTER PROMPT -->
+  <div class="card">
+    <div class="card-title">Starter Prompt — Paste This Into Your Team Account to Resume</div>
+    <div class="note note-blue" style="margin-bottom:16px;">
+      <span style="font-size:15px;">💡</span>
+      <div style="font-size:12.5px; color:var(--blue);">Copy the text below and paste it as your first message in a new conversation on your Team account. Also re-upload the two HTML files. Claude will have all the context it needs to continue seamlessly.</div>
+    </div>
+    <div class="prompt-box">
+      <div class="prompt-label">Copy &amp; Paste This Prompt</div>
+      <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+      <div class="prompt-text" id="promptText">Hi! I'm Bri, VP of Digital Marketing at P11creative — a boutique national real estate marketing agency in Newport Beach, CA. I'm continuing a project I started on another Claude account and need to pick up where we left off.
+
+PROJECT: New Client Onboarding System
+We built two deliverables that I'm re-uploading:
+1. p11-onboarding-dashboard.html — A P11-branded interactive portal with a Dominos-style 7-stage progress tracker. Has a Client View (intake questionnaire + action items) and a Team View (full tabbed checklist by service with owner badges).
+2. p11-onboarding-automation-flow.html — A Zapier/Make.com automation blueprint covering 4 Zaps that connect form submission to Accelo, Basecamp, Dropbox, Google Drive, Softr, Gmail, and Slack.
+
+KEY CONTEXT:
+- P11creative brand: Red #FA4614 (use sparingly), Charcoal #1A1A1A, Inter font, tagline "AMPLIFIED REAL ESTATE MARKETING."
+- Tools in use: Accelo (billing/PM), Basecamp (client comms), Dropbox (creative assets), Softr (client portal at clients.p11.com), Jotform (current intake form → submissions to p11creative@gmail.com), Google Drive (campaign sheets), Looker (reporting)
+- Services: Paid Search, Paid Social (Meta), SEO, Display/Remarketing, Email Marketing, CTV, ILS Management (Zillow/CoStar), Reporting & Analytics
+- Standard platforms we need admin access to: Google Ads, GA4, GTM, Search Console, Google Business Profile, Meta Pages, Meta Ads Manager, Website CMS, CRM
+- Accelo Template IDs: SEO=367, SEM=396, Paid Social=369, Email=368, ILS=374, Media Planning=373, Creative=370, Google Ads Audit=407, Reporting Audit=408
+
+WHERE WE LEFT OFF:
+Phase 1 (design + blueprint) is complete. Next priorities:
+1. Team needs to review and validate the dashboard — share with Account Managers and Digital Lead to check task lists and owner assignments
+2. Decide: keep Jotform or migrate intake to native Softr form (this determines how automations are built)
+3. Build the Phase 1 automations in this order: (a) Slack new client notification — easiest quick win, (b) Basecamp project auto-creation, (c) Accelo company + retainer creation, (d) Dropbox folder creation, (e) Kickoff email auto-draft to AM
+
+OPEN QUESTIONS still to resolve:
+- Jotform vs. Softr for the intake form
+- Who owns the automation build internally
+- Whether client dashboard lives in Softr or standalone on P11.com
+- How to securely collect CMS/CRM credentials (currently a plain text field)
+
+I'd like to continue refining the dashboard and start building out the automation steps. What would you like to work on?</div>
+    </div>
+  </div>
+
+  <!-- FILES TO RE-UPLOAD -->
+  <div class="card">
+    <div class="card-title">Files to Re-Upload on Your Team Account</div>
+    <div class="note note-green">
+      <span style="font-size:15px;">📁</span>
+      <div style="font-size:12.5px; color:var(--green);">Both HTML files are in your outputs folder. Download them and attach them when starting your new conversation alongside the starter prompt above.</div>
+    </div>
+    <div class="deliverable">
+      <div class="del-icon">🖥️</div>
+      <div>
+        <div class="del-name">p11-onboarding-dashboard.html</div>
+        <div class="del-desc">The main client + team dashboard. Open in any browser to preview. Can be hosted on P11.com or embedded in Softr.</div>
+      </div>
+    </div>
+    <div class="deliverable" style="border-bottom:none;">
+      <div class="del-icon">⚡</div>
+      <div>
+        <div class="del-name">p11-onboarding-automation-flow.html</div>
+        <div class="del-desc">The automation blueprint. Share with whoever is building the Zaps. Open in browser — no special software needed.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div><strong>P11creative</strong> · Internal Use Only · Project Status Brief — March 17, 2026</div>
+  <div class="footer-tag">Amplified Real Estate Marketing.</div>
+</footer>
+
+<script>
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    btn.style.background = '#1A9E6A';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#FA4614'; }, 2500);
+  });
+}
+</script>
+</body>
+</html>

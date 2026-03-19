@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P11creative | Internal Onboarding Portal</title>
+    <style>
+      :root {
+        --red: #fa4614;
+        --charcoal: #1a1a1a;
+        --charcoal-2: #2d2d2d;
+        --bg: #f5f5f3;
+        --white: #ffffff;
+        --border: #e3e2df;
+        --gray: #767676;
+        --green: #1a9e6a;
+        --amber: #e08000;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--charcoal);
+      }
+
+      .header {
+        background: var(--charcoal);
+        color: white;
+        border-bottom: 3px solid var(--red);
+        padding: 14px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: var(--red);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 12px;
+      }
+
+      .brand-title {
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .brand-title span {
+        color: var(--red);
+      }
+
+      .brand-sub {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .nav a {
+        color: rgba(255, 255, 255, 0.85);
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        padding: 6px 11px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .nav a.active {
+        background: var(--red);
+        border-color: var(--red);
+      }
+
+      .main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 20px 40px;
+      }
+
+      .auth-card {
+        max-width: 460px;
+        margin: 26px auto;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 22px;
+      }
+      .auth-card.hide {
+        display: none;
+      }
+
+      .auth-card h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      .auth-card p {
+        margin: 0 0 16px;
+        color: var(--gray);
+        line-height: 1.55;
+      }
+
+      .field {
+        margin-bottom: 12px;
+      }
+
+      .field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 5px;
+      }
+
+      .field input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 11px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+
+      .field input:focus {
+        outline: none;
+        border-color: var(--red);
+        box-shadow: 0 0 0 2px rgba(250, 70, 20, 0.08);
+      }
+
+      .submit-btn {
+        border: none;
+        border-radius: 8px;
+        background: var(--red);
+        color: white;
+        font-size: 13px;
+        font-weight: 800;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .auth-message {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--gray);
+        min-height: 16px;
+      }
+
+      .auth-message.error {
+        color: #cc2e17;
+      }
+
+      .shell {
+        display: none;
+      }
+
+      .shell.show {
+        display: block;
+      }
+
+      .toolbar {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .toolbar input,
+      .toolbar select {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 9px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .toolbar .stretch {
+        flex: 1;
+        min-width: 220px;
+      }
+
+      .stats {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .stat {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+      }
+
+      .stat .label {
+        font-size: 11px;
+        color: var(--gray);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .stat .value {
+        margin-top: 4px;
+        font-size: 21px;
+        font-weight: 900;
+      }
+
+      .table-wrap {
+        margin-top: 14px;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+
+      #overviewBody tr[data-onboarding-client-id] {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+
+      #overviewBody tr[data-onboarding-client-id]:hover {
+        background: rgba(250, 70, 20, 0.06);
+      }
+
+      #overviewBody tr[data-onboarding-client-id]:focus-visible {
+        outline: 2px solid rgba(250, 70, 20, 0.35);
+        outline-offset: -2px;
+      }
+
+      #overviewBody tr[data-onboarding-client-id].is-opening {
+        opacity: 0.6;
+      }
+
+      th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--gray);
+      }
+
+      .pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 800;
+        border-radius: 999px;
+        padding: 3px 8px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .pill.stage {
+        background: rgba(250, 70, 20, 0.12);
+        color: var(--red);
+      }
+
+      .pill.submitted {
+        background: rgba(26, 158, 106, 0.12);
+        color: var(--green);
+      }
+
+      .pill.draft {
+        background: rgba(224, 128, 0, 0.14);
+        color: var(--amber);
+      }
+
+      .session {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--gray);
+      }
+
+      .logout {
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 7px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      @media (max-width: 920px) {
+        .stats {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <div class="mark">P11</div>
+        <div>
+          <div class="brand-title">P11<span>creative</span></div>
+          <div class="brand-sub">Internal Onboarding Portal</div>
+        </div>
+      </div>
+      <nav class="nav" aria-label="App Navigation">
+        <a href="/">Home</a>
+        <a href="/p11-onboarding-dashboard.html">Dashboard</a>
+        <a href="/p11-onboarding-account-access.html">Account Access</a>
+        <a class="active" href="/internal.html">Internal Portal</a>
+        <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
+        <a href="/p11-onboarding-project-brief.html">Project Brief</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section class="auth-card" id="authCard">
+        <h1>Internal Access</h1>
+        <p>Private login for internal users with full visibility across all onboarding companies and communities.</p>
+        <form id="internalLoginForm">
+          <div class="field">
+            <label for="internalEmail">Email</label>
+            <input id="internalEmail" type="email" required />
+          </div>
+          <div class="field">
+            <label for="internalPassword">Password</label>
+            <input id="internalPassword" type="password" required />
+          </div>
+          <button class="submit-btn" id="internalLoginSubmit" type="submit">Log In</button>
+          <div class="auth-message" id="internalAuthMessage"></div>
+        </form>
+      </section>
+
+      <section class="shell" id="internalShell">
+        <div class="toolbar">
+          <input class="stretch" id="searchInput" type="text" placeholder="Search company or community..." />
+          <select id="stageFilter">
+            <option value="">All Stages</option>
+            <option value="contract_signed">Contract Signed</option>
+            <option value="intake_form">Intake Form</option>
+            <option value="account_access">Account Access</option>
+            <option value="creative_kickoff">Creative Kickoff</option>
+            <option value="campaign_build">Campaign Build</option>
+            <option value="prelaunch_review">Pre-Launch Review</option>
+            <option value="go_live">Go Live</option>
+          </select>
+          <button class="submit-btn" id="refreshBtn" type="button">Refresh</button>
+          <button class="logout" id="logoutBtn" type="button">Log Out</button>
+          <span class="session" id="sessionInfo"></span>
+        </div>
+        <p style="margin:8px 2px 0; color:var(--gray); font-size:12px;">
+          Click any community row to open the appropriate onboarding step view.
+        </p>
+
+        <div class="stats">
+          <div class="stat"><div class="label">Communities</div><div class="value" id="totalCommunities">0</div></div>
+          <div class="stat"><div class="label">In Intake</div><div class="value" id="intakeCount">0</div></div>
+          <div class="stat"><div class="label">Awaiting Access</div><div class="value" id="accessCount">0</div></div>
+          <div class="stat"><div class="label">Go Live</div><div class="value" id="goLiveCount">0</div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Community</th>
+                <th>Stage</th>
+                <th>Status</th>
+                <th>Go Live</th>
+                <th>Last Submission</th>
+              </tr>
+            </thead>
+            <tbody id="overviewBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./frontend/src/internal-main.js"></script>
+  </body>
+</html>

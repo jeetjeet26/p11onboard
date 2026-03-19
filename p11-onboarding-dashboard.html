@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P11creative | Client Onboarding Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────
+   P11creative Brand System
+   Primary:  #FA4614 (P11 Red)   — use sparingly
+   Base:     #1A1A1A (Charcoal)  — headings, dark surfaces
+             #F5F5F3 (Off-white) — page bg
+             #FFFFFF (White)     — cards
+   Font:     Inter (Area proxy)
+───────────────────────────────────────────── */
+:root {
+  --red:        #FA4614;
+  --red-light:  rgba(250,70,20,0.08);
+  --red-mid:    rgba(250,70,20,0.15);
+  --charcoal:   #1A1A1A;
+  --charcoal2:  #2D2D2D;
+  --charcoal3:  #444444;
+  --gray:       #767676;
+  --gray-light: #ABABAB;
+  --border:     #E3E2DF;
+  --bg:         #F5F5F3;
+  --white:      #FFFFFF;
+  --green:      #1A9E6A;
+  --green-bg:   rgba(26,158,106,0.08);
+  --amber:      #E08000;
+  --amber-bg:   rgba(224,128,0,0.09);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg); color: var(--charcoal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--charcoal);
+  padding: 0 44px;
+  display: flex;
+  align-items: stretch;
+  min-height: 68px;
+  border-bottom: 3px solid var(--red);
+}
+.header-left {
+  display: flex; align-items: center; gap: 20px;
+  padding: 16px 0;
+}
+.logo-block {
+  display: flex; align-items: center; gap: 14px;
+}
+.logo-mark {
+  width: 40px; height: 40px;
+  background: var(--red);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900; color: white;
+  letter-spacing: -0.5px; flex-shrink: 0;
+}
+.logo-text {
+  display: flex; flex-direction: column; gap: 1px;
+}
+.logo-name {
+  font-size: 17px; font-weight: 800; color: white; letter-spacing: -0.3px;
+}
+.logo-name span { color: var(--red); }
+.logo-sub { font-size: 11px; color: rgba(255,255,255,0.38); font-weight: 400; letter-spacing: 0.04em; }
+
+.header-divider {
+  width: 1px; background: rgba(255,255,255,0.1);
+  margin: 14px 20px;
+}
+.header-tagline {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.3);
+  text-transform: uppercase; letter-spacing: 0.12em;
+  align-self: center;
+}
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 20px;
+  flex-wrap: wrap;
+}
+.header-nav-link {
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.82);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 6px 11px;
+}
+.header-nav-link:hover { border-color: rgba(255,255,255,0.4); }
+.header-nav-link.active {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+}
+.header-nav-link.internal-only-nav { display: none; }
+body.internal-user .header-nav-link.internal-only-nav { display: inline-flex; }
+.header-right {
+  margin-left: auto; display: flex; align-items: center; gap: 12px;
+}
+.session-info {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.82);
+  font-size: 12px;
+  font-weight: 600;
+}
+.session-info.show { display: inline-flex; }
+.logout-btn {
+  display: none;
+  padding: 8px 14px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: transparent;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: inherit;
+}
+.logout-btn.show { display: inline-flex; align-items: center; }
+.logout-btn:hover { border-color: rgba(255,255,255,0.35); }
+.view-toggle {
+  display: flex; background: rgba(255,255,255,0.07);
+  border-radius: 6px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.toggle-btn {
+  padding: 8px 20px; border: none; background: transparent;
+  color: rgba(255,255,255,0.45); cursor: pointer; font-size: 12px;
+  font-weight: 700; transition: all 0.2s; font-family: inherit;
+  letter-spacing: 0.03em; text-transform: uppercase;
+}
+.toggle-btn.active {
+  background: var(--red); color: white;
+}
+
+/* ── CLIENT BAR ── */
+.client-bar {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 11px 44px;
+  display: flex; align-items: center; gap: 14px;
+}
+.cb-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--gray-light);
+}
+.cb-name { font-size: 16px; font-weight: 800; color: var(--charcoal); }
+.cb-company {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--charcoal);
+}
+.cb-switch-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cb-switch-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gray-light);
+}
+.cb-switch {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: white;
+  color: var(--charcoal);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 9px;
+  min-width: 220px;
+}
+.cb-switch:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px rgba(250,70,20,0.08);
+}
+.cb-badge {
+  font-size: 10px; font-weight: 700;
+  background: var(--charcoal); color: white;
+  padding: 3px 10px; border-radius: 3px; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cb-am {
+  font-size: 12px; color: var(--gray);
+  background: var(--bg); padding: 4px 12px; border-radius: 4px;
+}
+.cb-am strong { color: var(--charcoal); }
+.cb-live {
+  margin-left: auto; font-size: 12px; color: var(--gray);
+  display: flex; align-items: center; gap: 6px;
+}
+.cb-live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0;
+}
+.cb-live strong { color: var(--charcoal); font-weight: 700; }
+
+/* ── MAIN LAYOUT ── */
+.main { max-width: 1160px; margin: 0 auto; padding: 28px 44px; }
+
+/* ── TRACKER ── */
+.tracker-card {
+  background: white; border-radius: 10px; padding: 28px 32px;
+  margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+}
+.section-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--gray-light); margin-bottom: 22px;
+}
+.tracker { display: flex; align-items: center; }
+.connector { flex: 1; height: 2px; background: var(--border); transition: background 0.4s; }
+.connector.done { background: var(--charcoal); }
+.connector.active { background: linear-gradient(to right, var(--charcoal) 30%, var(--border)); }
+.stage { display: flex; flex-direction: column; align-items: center; }
+.stage-dot {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; background: var(--bg);
+  border: 2px solid var(--border); color: var(--gray-light);
+  transition: all 0.3s; position: relative; z-index: 2;
+  font-weight: 700;
+}
+.stage-dot.done {
+  background: var(--charcoal); border-color: var(--charcoal);
+  color: white; font-size: 16px;
+}
+.stage-dot.active {
+  background: var(--red); border-color: var(--red); color: white;
+  box-shadow: 0 0 0 5px rgba(250,70,20,0.15);
+  animation: redglow 2s infinite;
+}
+@keyframes redglow {
+  0%,100% { box-shadow: 0 0 0 5px rgba(250,70,20,0.15); }
+  50%      { box-shadow: 0 0 0 10px rgba(250,70,20,0.06); }
+}
+.stage-name {
+  margin-top: 9px; font-size: 10.5px; font-weight: 600; color: var(--gray-light);
+  text-align: center; max-width: 70px; line-height: 1.4; letter-spacing: 0.01em;
+}
+.stage-name.done  { color: var(--charcoal); font-weight: 700; }
+.stage-name.active { color: var(--red); font-weight: 800; }
+
+.step-callout {
+  margin-top: 22px; padding: 14px 18px;
+  background: var(--red-light); border-left: 3px solid var(--red);
+  border-radius: 0 6px 6px 0;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.sc-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
+.sc-title { font-size: 13px; font-weight: 800; color: var(--charcoal); margin-bottom: 3px; }
+.sc-text  { font-size: 12px; color: var(--gray); line-height: 1.65; }
+
+/* ── CARDS ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+.card {
+  background: white; border-radius: 10px; padding: 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid var(--border);
+}
+.card-title {
+  font-size: 13px; font-weight: 800; color: var(--charcoal);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cl-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.cl-row:last-child { border-bottom: none; }
+.cl-dot {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+}
+.cl-done  { background: var(--charcoal); color: white; }
+.cl-now   { background: var(--red-mid); color: var(--red); }
+.cl-pend  { background: var(--bg); color: var(--gray-light); border: 1.5px solid var(--border); }
+.cl-text  { font-size: 12.5px; color: var(--charcoal3); flex: 1; line-height: 1.4; }
+.cl-text.done { text-decoration: line-through; color: var(--gray-light); }
+.cl-meta  { font-size: 11px; color: var(--gray-light); white-space: nowrap; }
+.cl-meta.now { color: var(--red); font-weight: 700; }
+
+/* ── QUESTIONNAIRE ── */
+.q-card {
+  background: white; border-radius: 10px; padding: 32px;
+  margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+}
+.q-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
+.q-title { font-size: 20px; font-weight: 900; color: var(--charcoal); letter-spacing: -0.3px; }
+.step-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--red-light); color: var(--red);
+  font-size: 11px; font-weight: 800; padding: 5px 14px;
+  border-radius: 3px; white-space: nowrap; text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.q-sub { font-size: 12.5px; color: var(--gray); margin-bottom: 18px; line-height: 1.6; }
+.prog-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gray-light);
+  margin-bottom: 8px;
+}
+.prog-bar { height: 3px; background: var(--border); margin-bottom: 30px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--red); transition: width 0.5s ease; }
+
+.q-section { margin-bottom: 28px; }
+.q-sec-head {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--charcoal); border-bottom: 2px solid var(--charcoal);
+  padding-bottom: 7px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.q-sec-head::after {
+  content: ''; flex: 1; height: 2px; background: var(--border); margin-left: 4px;
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg.full { grid-column: 1/-1; }
+.fl {
+  font-size: 11.5px; font-weight: 700; color: var(--charcoal3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.fl .req { color: var(--red); }
+.fi {
+  padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: inherit; color: var(--charcoal); background: white;
+  transition: border-color 0.2s;
+}
+.fi:focus { outline: none; border-color: var(--charcoal); }
+.fi::placeholder { color: var(--border); }
+textarea.fi { resize: vertical; min-height: 72px; }
+select.fi { cursor: pointer; }
+
+/* access items */
+.acc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.acc-item {
+  display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+  border: 1.5px solid var(--border); border-radius: 7px; cursor: pointer; transition: all 0.2s;
+}
+.acc-item:hover { border-color: var(--charcoal); background: var(--bg); }
+.acc-item.granted { border-color: var(--green); background: var(--green-bg); }
+.acc-cb { width: 17px; height: 17px; accent-color: var(--charcoal); cursor: pointer; }
+.acc-name { font-size: 12.5px; font-weight: 600; color: var(--charcoal3); flex: 1; }
+.acc-link { font-size: 11px; color: var(--red); font-weight: 600; white-space: nowrap; }
+
+/* service chips */
+.svc-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.svc-chip {
+  padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-weight: 700; text-align: center; cursor: pointer;
+  transition: all 0.2s; color: var(--gray); user-select: none; font-family: inherit;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.svc-chip:hover { border-color: var(--charcoal); color: var(--charcoal); background: var(--bg); }
+.svc-chip.on { background: var(--charcoal); border-color: var(--charcoal); color: white; }
+
+.svc-detail {
+  display: none; margin-top: 12px; padding: 16px 18px;
+  background: var(--bg); border-radius: 8px; border-left: 3px solid var(--charcoal);
+}
+.svc-detail-title { font-size: 12px; font-weight: 800; color: var(--charcoal); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* upload */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 8px; padding: 22px;
+  text-align: center; cursor: pointer; transition: all 0.2s; color: var(--gray);
+}
+.upload-zone:hover { border-color: var(--charcoal); background: var(--bg); }
+.upload-icon { font-size: 26px; margin-bottom: 7px; }
+.upload-title { font-size: 13px; font-weight: 700; color: var(--charcoal3); }
+.upload-sub { font-size: 11px; color: var(--gray-light); margin-top: 3px; }
+
+.submit-btn {
+  width: 100%; padding: 15px; background: var(--red); color: white;
+  border: none; border-radius: 7px; font-size: 14px; font-weight: 800;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-top: 10px;
+}
+.submit-btn:hover {
+  background: #d93c0e; transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(250,70,20,0.3);
+}
+
+/* ── INTERNAL VIEW ── */
+.int-section {
+  background: white; border-radius: 10px; padding: 24px;
+  margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+}
+.stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+.stat-box {
+  text-align: center; padding: 16px 10px; background: var(--bg);
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.stat-num { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; }
+.stat-lbl { font-size: 10px; color: var(--gray); margin-top: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.tab {
+  padding: 6px 14px; border: 1.5px solid var(--border); border-radius: 4px;
+  font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  color: var(--gray); background: white; font-family: inherit;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.tab:hover { border-color: var(--charcoal); color: var(--charcoal); }
+.tab.active { background: var(--charcoal); border-color: var(--charcoal); color: white; }
+.tab.warn-tab.active { background: var(--red); border-color: var(--red); }
+
+.task-group { margin-bottom: 22px; }
+.tg-title {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--charcoal3); margin-bottom: 8px; margin-top: 4px;
+  display: flex; align-items: center; gap: 7px;
+  border-bottom: 1px solid var(--border); padding-bottom: 8px;
+}
+.tg-title.warn { color: var(--red); border-color: rgba(250,70,20,0.2); }
+
+.task-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  background: var(--bg); border-radius: 6px; margin-bottom: 5px;
+  transition: background 0.15s; border: 1px solid transparent;
+}
+.task-row:hover { background: #EDECE8; border-color: var(--border); }
+.task-row.pre-launch { border-left: 2px solid var(--red); }
+.task-cb { width: 16px; height: 16px; cursor: pointer; accent-color: var(--charcoal); flex-shrink: 0; }
+.task-text { font-size: 12.5px; color: var(--charcoal3); flex: 1; line-height: 1.45; }
+.task-text.done { text-decoration: line-through; color: var(--gray-light); }
+.task-text em { color: var(--red); font-style: normal; font-weight: 700; }
+
+/* owner badges */
+.badge {
+  font-size: 9.5px; font-weight: 800; padding: 3px 8px; border-radius: 3px;
+  white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.b-acct     { background: #E8EDF8; color: #1D3A8A; }
+.b-digital  { background: #E6F4EC; color: #14532D; }
+.b-creative { background: #F3E8FF; color: #5B1D8A; }
+.b-admin    { background: #FEE8E8; color: #8A1D1D; }
+.b-client   { background: var(--amber-bg); color: var(--amber); }
+
+.s-badge {
+  font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 3px;
+  margin-left: 5px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.s-done { background: var(--green-bg); color: var(--green); }
+.s-prog { background: var(--amber-bg); color: var(--amber); }
+
+/* view control */
+[data-view="internal"] { display: none; }
+body.int [data-view="client"]   { display: none; }
+body.int [data-view="internal"] { display: block; }
+body.auth-pending .client-bar,
+body.auth-pending .main,
+body.auth-pending .footer {
+  display: none;
+}
+body.auth-pending .view-toggle {
+  display: none;
+}
+
+.auth-root {
+  min-height: calc(100vh - 68px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+body.auth-pending .auth-root {
+  display: flex;
+}
+.auth-shell {
+  width: min(960px, 100%);
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 20px;
+}
+.auth-panel,
+.auth-card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+}
+.auth-panel {
+  padding: 34px;
+  background: linear-gradient(135deg, var(--charcoal) 0%, #252525 100%);
+  color: white;
+}
+.auth-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 12px;
+}
+.auth-title {
+  font-size: 34px;
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin-bottom: 14px;
+}
+.auth-copy {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.72);
+  max-width: 46ch;
+}
+.auth-card {
+  padding: 28px 24px;
+}
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.auth-tab {
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--gray);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  font-family: inherit;
+}
+.auth-tab.active {
+  background: var(--charcoal);
+  border-color: var(--charcoal);
+  color: white;
+}
+.auth-form { display: none; }
+.auth-form.active { display: block; }
+.auth-form-title {
+  font-size: 20px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.auth-form-copy {
+  font-size: 12.5px;
+  color: var(--gray);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.auth-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--charcoal3);
+}
+.auth-input {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  font: inherit;
+  font-size: 14px;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--charcoal);
+}
+.auth-submit {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: var(--red);
+  color: white;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 6px;
+}
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.auth-message {
+  margin-top: 12px;
+  min-height: 20px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.auth-message.error { color: #b42318; }
+.auth-message.success { color: var(--green); }
+.company-results {
+  display: none;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+.company-results.show { display: block; }
+.company-result {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.company-result:last-child { border-bottom: none; }
+.company-result:hover,
+.company-result.active {
+  background: var(--bg);
+}
+.company-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--charcoal);
+}
+.company-meta {
+  font-size: 11px;
+  color: var(--gray);
+  margin-top: 3px;
+}
+.company-selected {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+}
+.company-selected.show { display: block; }
+
+/* ── AMPLIFY FOOTER ── */
+.footer {
+  background: var(--charcoal); color: rgba(255,255,255,0.3);
+  padding: 18px 44px; display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; margin-top: 40px; border-top: 2px solid var(--red);
+}
+.footer strong { color: white; }
+.footer-tag { font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red); }
+
+@media (max-width: 768px) {
+  .header { padding: 14px 20px; flex-wrap: wrap; gap: 12px; }
+  .client-bar { padding: 12px 20px; flex-wrap: wrap; }
+  .main { padding: 20px; }
+  .two-col, .form-grid, .acc-grid, .svc-grid, .stat-grid { grid-template-columns: 1fr; }
+  .svc-grid { grid-template-columns: 1fr 1fr; }
+  .header-divider, .header-tagline { display: none; }
+  .header-nav { margin-left: 0; width: 100%; }
+  .auth-shell { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body class="auth-pending">
+
+<!-- ── HEADER ── -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo-block">
+      <div class="logo-mark">P11</div>
+      <div class="logo-text">
+        <div class="logo-name">P11<span>creative</span></div>
+        <div class="logo-sub">Client Onboarding Portal</div>
+      </div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-tagline">Amplified Real Estate Marketing</div>
+    <nav class="header-nav" aria-label="App Navigation">
+      <a class="header-nav-link active" href="/p11-onboarding-dashboard.html">Dashboard</a>
+      <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/internal.html">Internal Portal</a>
+      <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-automation-flow.html">Automation Flow</a>
+      <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-project-brief.html">Project Brief</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <div class="session-info" id="sessionInfo"></div>
+    <button class="logout-btn" id="logoutBtn" type="button">Log Out</button>
+  </div>
+</header>
+
+<div class="auth-root" id="authRoot"></div>
+
+<!-- ── CLIENT BAR ── -->
+<div class="client-bar">
+  <span class="cb-label">Company</span>
+  <span class="cb-company" id="displayCompany">Not selected</span>
+  <span class="cb-label">Community</span>
+  <span class="cb-name" id="displayName">New Community</span>
+  <div class="cb-switch-wrap">
+    <span class="cb-switch-label">Switch</span>
+    <select class="cb-switch" id="communitySwitcher" aria-label="Switch active community">
+      <option value="">Select a community...</option>
+    </select>
+  </div>
+  <span class="cb-badge" id="displayType">Multi-Family</span>
+  <span class="cb-am">Account Manager: <strong id="displayAM">TBD</strong></span>
+  <div class="cb-live">
+    <div class="cb-live-dot"></div>
+    Target Go-Live: <strong id="displayGoLive">TBD</strong>
+  </div>
+</div>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- TRACKER (shared) -->
+  <div class="tracker-card">
+    <div class="section-label">Onboarding Progress</div>
+    <div class="tracker">
+      <div class="stage">
+        <div class="stage-dot done" id="s1">✓</div>
+        <div class="stage-name done">Contract<br>Signed</div>
+      </div>
+      <div class="connector done" id="c1"></div>
+      <div class="stage">
+        <div class="stage-dot active" id="s2">2</div>
+        <div class="stage-name active" id="sn2">Intake<br>Form</div>
+      </div>
+      <div class="connector" id="c2"></div>
+      <div class="stage">
+        <div class="stage-dot" id="s3">3</div>
+        <div class="stage-name" id="sn3">Account<br>Access</div>
+      </div>
+      <div class="connector" id="c3"></div>
+      <div class="stage">
+        <div class="stage-dot" id="s4">4</div>
+        <div class="stage-name" id="sn4">Creative<br>Kickoff</div>
+      </div>
+      <div class="connector" id="c4"></div>
+      <div class="stage">
+        <div class="stage-dot" id="s5">5</div>
+        <div class="stage-name" id="sn5">Campaign<br>Build</div>
+      </div>
+      <div class="connector" id="c5"></div>
+      <div class="stage">
+        <div class="stage-dot" id="s6">6</div>
+        <div class="stage-name" id="sn6">Pre-Launch<br>Review</div>
+      </div>
+      <div class="connector" id="c6"></div>
+      <div class="stage">
+        <div class="stage-dot" id="s7">🚀</div>
+        <div class="stage-name" id="sn7">GO<br>LIVE</div>
+      </div>
+    </div>
+    <div class="step-callout">
+      <span class="sc-icon">⏳</span>
+      <div>
+        <div class="sc-title" id="stepTitle">Step 2 of 7 — Complete Your Intake Questionnaire</div>
+        <div class="sc-text" id="stepText">Fill out all sections below so we can start building your campaigns. Most clients finish in about 15 minutes. Your P11creative account manager will follow up within 1 business day of submission.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ CLIENT VIEW ════════ -->
+  <div data-view="client">
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">📌 Your Action Items</div>
+        <div class="cl-row">
+          <div class="cl-dot cl-done">✓</div>
+          <span class="cl-text done">Sign contract / SOW with P11creative</span>
+          <span class="cl-meta">Complete</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-now">!</div>
+          <span class="cl-text"><strong>Complete intake questionnaire</strong> — see below</span>
+          <span class="cl-meta now">Your turn</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-now">!</div>
+          <span class="cl-text"><strong>Grant admin access</strong> to your platforms</span>
+          <span class="cl-meta now">Your turn</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-pend">·</div>
+          <span class="cl-text">Review &amp; approve ad copy + creative</span>
+          <span class="cl-meta">Coming soon</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-pend">·</div>
+          <span class="cl-text">Final campaign approval before launch</span>
+          <span class="cl-meta">Coming soon</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🗓 What to Expect</div>
+        <div class="cl-row">
+          <div class="cl-dot cl-done">✓</div>
+          <span class="cl-text done">Contract Signed</span>
+          <span class="cl-meta">Day 1</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-now">!</div>
+          <span class="cl-text"><strong>Questionnaire + Account Access</strong></span>
+          <span class="cl-meta now">Days 1–3</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-pend">·</div>
+          <span class="cl-text">Kickoff Meeting (if needed)</span>
+          <span class="cl-meta">Day 3–4</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-pend">·</div>
+          <span class="cl-text">Creative &amp; Campaign Build</span>
+          <span class="cl-meta">Days 4–9</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-pend">·</div>
+          <span class="cl-text">Your Review &amp; Approval</span>
+          <span class="cl-meta">Days 9–12</span>
+        </div>
+        <div class="cl-row">
+          <div class="cl-dot cl-pend">·</div>
+          <span class="cl-text"><strong>🚀 Campaigns Go Live!</strong></span>
+          <span class="cl-meta">Day 13+</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── QUESTIONNAIRE ─── -->
+    <div class="q-card">
+      <div class="q-top">
+        <div>
+          <div class="q-title">Digital Marketing Intake Questionnaire</div>
+          <div class="q-sub">Complete all required fields (<span style="color:var(--red)">*</span>) so P11creative can build the most effective campaigns for your community. All information is kept strictly confidential.</div>
+        </div>
+        <div class="step-pill">Step 2 of 7</div>
+      </div>
+      <div class="prog-label">Step 2 Intake Completion</div>
+      <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+
+      <!-- §1 Community Info -->
+      <div class="q-section">
+        <div class="q-sec-head">1 — Community Information</div>
+        <div class="form-grid">
+          <div class="fg">
+            <label class="fl">Community Name <span class="req">*</span></label>
+            <input class="fi rq" type="text" placeholder="e.g. Las Brisas" oninput="calcProg()">
+          </div>
+          <div class="fg">
+            <label class="fl">Community Type <span class="req">*</span></label>
+            <select class="fi rq" oninput="calcProg()">
+              <option value="">Select...</option>
+              <option>Multi-Family</option>
+              <option>Homebuilding / For-Sale</option>
+              <option>Master-Planned Community</option>
+              <option>Active Adult / 55+</option>
+              <option>Build-to-Rent (BTR)</option>
+              <option>Luxury</option>
+              <option>Affordable / Workforce Housing</option>
+              <option>Student / Academic Housing</option>
+              <option>Mixed-Use</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="fg full">
+            <label class="fl">Community Address <span class="req">*</span></label>
+            <input class="fi rq" type="text" placeholder="Full street address, city, state, zip" oninput="calcProg()">
+          </div>
+          <div class="fg">
+            <label class="fl">Community Phone</label>
+            <input class="fi" type="tel" placeholder="(xxx) xxx-xxxx">
+          </div>
+          <div class="fg">
+            <label class="fl">Community Email</label>
+            <input class="fi" type="email" placeholder="info@community.com">
+          </div>
+          <div class="fg">
+            <label class="fl">Hours of Operation</label>
+            <input class="fi" type="text" placeholder="e.g. Mon–Sat 10am–6pm">
+          </div>
+          <div class="fg">
+            <label class="fl">Parent Company / Developer</label>
+            <input class="fi" type="text" placeholder="e.g. Greystar, MBK Homes, Irvine Company">
+          </div>
+          <div class="fg">
+            <label class="fl">Primary Reporting Contact Name <span class="req">*</span></label>
+            <input class="fi rq" type="text" placeholder="Full name" oninput="calcProg()">
+          </div>
+          <div class="fg">
+            <label class="fl">Reporting Contact Email <span class="req">*</span></label>
+            <input class="fi rq" type="email" placeholder="contact@company.com" oninput="calcProg()">
+          </div>
+          <div class="fg">
+            <label class="fl">Additional Report Recipients</label>
+            <input class="fi" type="text" placeholder="Name, email — separate multiple with commas">
+          </div>
+        </div>
+      </div>
+
+      <!-- §2 Website -->
+      <div class="q-section">
+        <div class="q-sec-head">2 — Website Information</div>
+        <div class="form-grid">
+          <div class="fg full">
+            <label class="fl">Property Website URL <span class="req">*</span></label>
+            <input class="fi rq" type="url" placeholder="https://www.yourwebsite.com" oninput="calcProg()">
+          </div>
+          <div class="fg">
+            <label class="fl">Who manages the website? <span class="req">*</span></label>
+            <select class="fi rq" oninput="calcProg()">
+              <option value="">Select...</option>
+              <option>P11creative manages directly</option>
+              <option>Our internal team</option>
+              <option>Third-party vendor</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">Website CMS / Platform</label>
+            <select class="fi">
+              <option value="">Select...</option>
+              <option>WordPress</option>
+              <option>WebPixel</option>
+              <option>Entrata</option>
+              <option>Yardi RentCafe</option>
+              <option>Squarespace</option>
+              <option>Wix</option>
+              <option>Custom Build</option>
+              <option>Other / Unsure</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">Can P11creative make direct edits?</label>
+            <select class="fi">
+              <option>Yes</option>
+              <option>No</option>
+              <option>Case by case — ask first</option>
+              <option>Unsure</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">When was the site last updated?</label>
+            <input class="fi" type="text" placeholder="e.g. Launched Nov 2024 / Still in build">
+          </div>
+          <div class="fg full">
+            <label class="fl">What site actions should be tracked as conversions? <span class="req">*</span></label>
+            <textarea class="fi rq" placeholder="e.g. Contact form submission, Schedule a tour click, Phone number click, Apply Now button, Chat widget start..." oninput="calcProg()"></textarea>
+          </div>
+          <div class="fg full">
+            <label class="fl">Technical notes, special vendors, or site restrictions?</label>
+            <textarea class="fi" placeholder="e.g. GTM managed by WebPixel (vendor@webpixel.com). FunnelBot being added at launch. No direct CMS access."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- §3 Target Market -->
+      <div class="q-section">
+        <div class="q-sec-head">3 — Market &amp; Strategy</div>
+        <div class="form-grid">
+          <div class="fg full">
+            <label class="fl">List your top 3–5 competitors <span class="req">*</span></label>
+            <textarea class="fi rq" placeholder="Community names you compete with directly in your submarket" oninput="calcProg()"></textarea>
+          </div>
+          <div class="fg full">
+            <label class="fl">What sets your community apart? <span class="req">*</span></label>
+            <textarea class="fi rq" placeholder="Amenities, location, pricing, lifestyle, new construction, resort-style features, proximity to employers..." oninput="calcProg()"></textarea>
+          </div>
+          <div class="fg full">
+            <label class="fl">Primary marketing goals <span class="req">*</span></label>
+            <textarea class="fi rq" placeholder="e.g. Drive lease-up leads for new community launch, build brand awareness, increase qualified traffic, fill remaining units..." oninput="calcProg()"></textarea>
+          </div>
+          <div class="fg">
+            <label class="fl">Top area employers (renters/buyers likely work at)</label>
+            <textarea class="fi" placeholder="e.g. UCI Medical Center, Boeing, Amazon distribution, local school districts..."></textarea>
+          </div>
+          <div class="fg">
+            <label class="fl">Primary geographic target area</label>
+            <input class="fi" type="text" placeholder="e.g. Orange County, CA + 25-mile radius">
+          </div>
+          <div class="fg">
+            <label class="fl">Out-of-market relocation targets?</label>
+            <input class="fi" type="text" placeholder="e.g. Relocators from LA Metro, Bay Area, Seattle">
+          </div>
+          <div class="fg">
+            <label class="fl">Locations or markets to EXCLUDE</label>
+            <input class="fi" type="text" placeholder="e.g. Exclude San Diego, specific zip codes...">
+          </div>
+          <div class="fg full">
+            <label class="fl">Keywords, terms, or topics to AVOID in ads</label>
+            <textarea class="fi" placeholder="e.g. Avoid competitor brand names, the word 'cheap', income-qualified language, specific comparisons..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- §4 Brand & Creative -->
+      <div class="q-section">
+        <div class="q-sec-head">4 — Brand &amp; Creative Direction</div>
+        <div class="form-grid">
+          <div class="fg full">
+            <label class="fl">Brand voice and tone</label>
+            <textarea class="fi" placeholder="e.g. Modern and aspirational, warm and welcoming, luxury/upscale, active and energetic, family-focused, resort-style..."></textarea>
+          </div>
+          <div class="fg full">
+            <label class="fl">Approved taglines, key messages, or phrases for ads</label>
+            <textarea class="fi" placeholder="Approved taglines, current campaign themes, or messaging directly from your brand guide..."></textarea>
+          </div>
+          <div class="fg full">
+            <label class="fl">Messaging or language to AVOID</label>
+            <textarea class="fi" placeholder="Off-brand phrases, competitor references, legally sensitive language, anything to steer clear of..."></textarea>
+          </div>
+          <div class="fg">
+            <label class="fl">Current or upcoming special offers / promotions</label>
+            <textarea class="fi" placeholder="e.g. 6 weeks free, reduced deposit, move-in special through March 31..."></textarea>
+          </div>
+          <div class="fg">
+            <label class="fl">Upcoming content or asset milestones</label>
+            <textarea class="fi" placeholder="e.g. Professional photography in April, model home tour in May, grand opening in June..."></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:15px;">
+          <label class="fl" style="display:block; margin-bottom:8px;">
+            Upload Brand Assets
+            <span style="font-weight:500; text-transform:none; color:var(--gray); font-size:11px;"> — brand guide, logos, photography, videos, renderings, virtual tour links</span>
+          </label>
+          <div class="upload-zone" onclick="document.getElementById('assetInput').click()">
+            <div class="upload-icon">📁</div>
+            <div class="upload-title">Drop files here or click to browse</div>
+            <div class="upload-sub">PDF, PNG, JPG, SVG, MP4, ZIP · Max 500 MB total</div>
+            <input type="file" id="assetInput" multiple style="display:none" onchange="showFiles(this)">
+          </div>
+          <div id="fileList" style="margin-top:8px;"></div>
+          <div class="fg" style="margin-top:11px;">
+            <label class="fl">Or paste a Dropbox / Google Drive shareable link</label>
+            <input class="fi" type="url" placeholder="https://www.dropbox.com/sh/...">
+          </div>
+        </div>
+      </div>
+
+      <!-- §5 Platform Support Scope -->
+      <div class="q-section">
+        <div class="q-sec-head">5 — Platforms You Want P11creative to Support</div>
+        <p style="font-size:12.5px; color:var(--gray); margin-bottom:14px; line-height:1.7;">
+          Select each platform in your support scope. After you submit this intake, Step 3 will be a
+          dedicated Account Access page with invite instructions and status tracking for the selected platforms.
+        </p>
+        <div class="acc-grid">
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Google Ads Manager</span>
+            <a class="acc-link" href="https://www.p11.com/marketing/kb/google-analytics/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Google Analytics 4 (GA4)</span>
+            <a class="acc-link" href="https://www.p11.com/marketing/kb/google-analytics/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Google Tag Manager (GTM)</span>
+            <a class="acc-link" href="https://www.p11.com/marketing/kb/add-user-to-gtm-account/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Google Search Console</span>
+            <a class="acc-link" href="https://www.p11.com/marketing/kb/search-console/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Google Business Profile</span>
+            <a class="acc-link" href="https://www.p11.com/marketing/kb/business-profile/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Meta Business Suite / Pages</span>
+            <a class="acc-link" href="https://www.p11.com/marketing/kb/grant-social-media-partner-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Meta Ads Manager</span>
+            <a class="acc-link" href="https://www.p11.com/marketing/kb/grant-social-media-partner-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Website CMS (login credentials)</span>
+            <span class="acc-link" style="cursor:default; opacity:.4">Username &amp; PW</span>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">CRM Platform</span>
+            <span class="acc-link" style="cursor:default; opacity:.4">Specify below</span>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">ILS Platform (Zillow / CoStar)</span>
+            <span class="acc-link" style="cursor:default; opacity:.4">If applicable</span>
+          </div>
+        </div>
+        <div class="fg full" style="margin-top:13px;">
+            <label class="fl">Platform context or vendor contact info</label>
+            <textarea class="fi" placeholder="e.g. GTM managed by WebPixel (vendor@webpixel.com) / CRM is Funnel, admin contact: pm@greystar.com"></textarea>
+        </div>
+      </div>
+
+      <!-- §6 Services -->
+      <div class="q-section">
+        <div class="q-sec-head">6 — Services Contracted with P11creative</div>
+        <p style="font-size:12.5px; color:var(--gray); margin-bottom:13px;">Select all services in your contract — this customizes your onboarding checklist and timeline.</p>
+        <div class="svc-grid">
+          <div class="svc-chip" onclick="toggleSvc(this,'ps')">🔍 Paid Search</div>
+          <div class="svc-chip" onclick="toggleSvc(this,'social')">📱 Paid Social</div>
+          <div class="svc-chip" onclick="toggleSvc(this,'seo')">📈 SEO</div>
+          <div class="svc-chip" onclick="toggleSvc(this,'display')">🖼 Display</div>
+          <div class="svc-chip" onclick="toggleSvc(this,'email')">📧 Email Mktg</div>
+          <div class="svc-chip" onclick="toggleSvc(this,'ctv')">📺 CTV</div>
+          <div class="svc-chip" onclick="toggleSvc(this,'ils')">🏢 ILS Mgmt</div>
+          <div class="svc-chip" onclick="toggleSvc(this,'reporting')">📊 Reporting</div>
+        </div>
+
+        <div class="svc-detail" id="svc-ps">
+          <div class="svc-detail-title">🔍 Paid Search (SEM) — Google Ads</div>
+          <div class="form-grid">
+            <div class="fg"><label class="fl">Monthly SEM Budget</label><input class="fi" type="text" placeholder="e.g. $3,000/mo"></div>
+            <div class="fg"><label class="fl">Existing Google Ads Account?</label>
+              <select class="fi"><option>No — P11creative will create a new account</option><option>Yes — I'll grant P11creative access</option></select>
+            </div>
+            <div class="fg full"><label class="fl">Primary keyword themes / search intent</label>
+              <textarea class="fi" placeholder="e.g. apartments in Orange County, 2BR rentals near UCI, luxury apartments Irvine..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="svc-detail" id="svc-social">
+          <div class="svc-detail-title">📱 Paid Social — Meta Ads</div>
+          <div class="form-grid">
+            <div class="fg"><label class="fl">Monthly Social Ad Budget</label><input class="fi" type="text" placeholder="e.g. $2,000/mo"></div>
+            <div class="fg"><label class="fl">Active Meta Business Page?</label>
+              <select class="fi"><option>Yes — I'll grant P11creative partner access</option><option>No — P11creative will help set up</option></select>
+            </div>
+            <div class="fg full"><label class="fl">Target audience description</label>
+              <textarea class="fi" placeholder="Age range, lifestyle, income level, household type (renters, first-time buyers, move-up buyers, active adults, etc.)"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="svc-detail" id="svc-seo">
+          <div class="svc-detail-title">📈 SEO</div>
+          <div class="form-grid">
+            <div class="fg full"><label class="fl">Primary SEO goals</label>
+              <textarea class="fi" placeholder="e.g. Rank for '[community] apartments', improve local pack presence, grow organic lead volume, outrank specific competitors..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="svc-detail" id="svc-display">
+          <div class="svc-detail-title">🖼 Display / Remarketing</div>
+          <div class="form-grid">
+            <div class="fg"><label class="fl">Monthly Display Budget</label><input class="fi" type="text" placeholder="e.g. $1,500/mo"></div>
+            <div class="fg"><label class="fl">Primary remarketing focus</label>
+              <select class="fi"><option>All site visitors</option><option>Floor plan page visitors</option><option>Pricing/availability page visitors</option><option>Custom (specify in notes)</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="svc-detail" id="svc-email">
+          <div class="svc-detail-title">📧 Email Marketing</div>
+          <div class="form-grid">
+            <div class="fg"><label class="fl">Email platform (if existing)</label>
+              <select class="fi"><option>Mailchimp</option><option>Klaviyo</option><option>Constant Contact</option><option>HubSpot</option><option>Entrata Email</option><option>Other</option><option>None — P11creative will set up</option></select>
+            </div>
+            <div class="fg"><label class="fl">Approximate existing list size</label><input class="fi" type="text" placeholder="# of contacts"></div>
+            <div class="fg full"><label class="fl">Email frequency &amp; goals</label>
+              <textarea class="fi" placeholder="e.g. Monthly newsletter + weekly specials, lead nurture drip sequence for pre-leasing, event announcements..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="svc-detail" id="svc-ctv">
+          <div class="svc-detail-title">📺 CTV / Streaming</div>
+          <div class="form-grid">
+            <div class="fg"><label class="fl">Monthly CTV Budget</label><input class="fi" type="text" placeholder="e.g. $2,500/mo"></div>
+            <div class="fg"><label class="fl">Video assets available?</label>
+              <select class="fi"><option>Yes — will upload/share</option><option>No — P11creative Creative team to produce</option><option>Partially — will share what we have</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="svc-detail" id="svc-ils">
+          <div class="svc-detail-title">🏢 ILS Management (Zillow, CoStar, etc.)</div>
+          <p style="font-size:12px; color:var(--gray); margin-bottom:10px;">Which ILS platforms are you currently listed on?</p>
+          <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:12.5px;"><input type="checkbox"> Zillow</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12.5px;"><input type="checkbox"> CoStar / Apartments.com</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12.5px;"><input type="checkbox"> Rent.com</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12.5px;"><input type="checkbox"> ApartmentList</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12.5px;"><input type="checkbox"> Realtor.com</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12.5px;"><input type="checkbox"> None yet — P11creative will set up</label>
+          </div>
+        </div>
+        <div class="svc-detail" id="svc-reporting">
+          <div class="svc-detail-title">📊 Reporting &amp; Analytics</div>
+          <div class="form-grid">
+            <div class="fg"><label class="fl">Report frequency</label>
+              <select class="fi"><option>Monthly</option><option>Weekly</option><option>Bi-weekly</option></select>
+            </div>
+            <div class="fg"><label class="fl">Report delivery preference</label>
+              <select class="fi"><option>Email (Looker link)</option><option>Basecamp post</option><option>Both</option></select>
+            </div>
+            <div class="fg full"><label class="fl">Key metrics you care most about</label>
+              <textarea class="fi" placeholder="e.g. Cost per lead, total leads, tours booked, cost per lease, organic traffic, conversion rate..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- §7 Final -->
+      <div class="q-section">
+        <div class="q-sec-head">7 — Preferences &amp; Final Notes</div>
+        <div class="form-grid">
+          <div class="fg full">
+            <label class="fl">Anything else we should know before building your campaigns?</label>
+            <textarea class="fi" style="min-height:88px;" placeholder="Special circumstances, key dates (pre-leasing launch, grand opening, model home tour), management company requirements, regulatory notes, budget timing, competing priorities..."></textarea>
+          </div>
+          <div class="fg">
+            <label class="fl">Preferred communication method <span class="req">*</span></label>
+            <select class="fi rq" oninput="calcProg()">
+              <option value="">Select...</option>
+              <option>Email</option>
+              <option>Basecamp</option>
+              <option>Both Email + Basecamp</option>
+              <option>Phone / Text</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">Target campaign go-live date <span class="req">*</span></label>
+            <input class="fi rq" type="date" oninput="calcProg(); setGoLive(this.value)">
+          </div>
+        </div>
+      </div>
+
+      <button class="submit-btn" onclick="submitForm()">Submit Questionnaire to P11creative →</button>
+    </div>
+    <!-- END QUESTIONNAIRE -->
+
+  </div>
+  <!-- END CLIENT VIEW -->
+
+  <!-- ════════ INTERNAL TEAM VIEW ════════ -->
+  <div data-view="internal">
+
+    <div class="int-section" style="padding:20px 24px;">
+      <div class="section-label" style="margin-bottom:14px;">Onboarding Snapshot</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-num" style="color:var(--red)">2/7</div><div class="stat-lbl">Stages Complete</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:var(--amber)">3</div><div class="stat-lbl">Awaiting Client</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:var(--charcoal)">8</div><div class="stat-lbl">Open P11 Tasks</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:var(--green)">2</div><div class="stat-lbl">Completed</div></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">👥 Team Assignments</div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Account Manager</span><span class="cl-meta">→ Assign</span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Project Manager</span><span class="cl-meta">→ Assign</span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Digital Marketing Lead</span><span class="cl-meta">→ Assign</span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Creative Lead</span><span class="cl-meta">→ Assign</span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Analytics / Reporting</span><span class="cl-meta">→ Assign</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔗 Quick Links</div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Accelo Project</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Basecamp Project Page</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Dropbox Creative Folder</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Google Drive Campaign Sheet</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
+        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Softr Client Portal</span><span class="cl-meta"><a href="https://clients.p11.com" target="_blank" style="color:var(--red); font-weight:700;">Open →</a></span></div>
+      </div>
+    </div>
+
+    <!-- FULL CHECKLIST -->
+    <div class="int-section">
+      <div class="card-title" style="margin-bottom:16px;">Full Onboarding Task List</div>
+      <div class="tabs">
+        <button class="tab active" onclick="filterGrp('all',this)">All Tasks</button>
+        <button class="tab" onclick="filterGrp('admin',this)">🏢 Admin</button>
+        <button class="tab" onclick="filterGrp('search',this)">🔍 Paid Search</button>
+        <button class="tab" onclick="filterGrp('social',this)">📱 Paid Social</button>
+        <button class="tab" onclick="filterGrp('seo',this)">📈 SEO</button>
+        <button class="tab" onclick="filterGrp('display',this)">🖼 Display</button>
+        <button class="tab" onclick="filterGrp('email',this)">📧 Email</button>
+        <button class="tab" onclick="filterGrp('ctv',this)">📺 CTV</button>
+        <button class="tab" onclick="filterGrp('ils',this)">🏢 ILS</button>
+        <button class="tab" onclick="filterGrp('reporting',this)">📊 Reporting</button>
+        <button class="tab warn-tab" onclick="filterGrp('prelaunch',this)">✅ Pre-Launch QA</button>
+      </div>
+
+      <!-- ADMIN -->
+      <div class="task-group" data-grp="admin">
+        <div class="tg-title">🏢 Admin &amp; System Setup</div>
+        <div class="task-row"><input type="checkbox" class="task-cb" checked><span class="task-text done">SOW signed and filed in Dropbox estimates folder</span><span class="badge b-acct">Acct Mgr</span><span class="s-badge s-done">Done</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb" checked><span class="task-text done">Accelo: company, contact, retainer + service lines created; initial invoice sent</span><span class="badge b-admin">Admin</span><span class="s-badge s-done">Done</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Basecamp: project page created, to-do lists per service, team notified of go-live date</span><span class="badge b-acct">Acct Mgr</span><span class="s-badge s-prog">In Progress</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Dropbox: public folder created with subfolders (Assets, Logos, Brand Guide, Ad Copy, Campaigns, Other)</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Softr: client user created, community set up, services configured, Dropbox link added</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">P11 Google Drive: Onboarding folder created (campaign structure, keywords, ad copy, assets tabs)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Client kickoff email sent: Softr link, Ways of Working doc, process overview, next steps</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Client completed intake questionnaire <em>⬅ Awaiting client</em></span><span class="badge b-client">Client</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">All admin access invites accepted at p11creative@gmail.com — verified by Acct Mgr</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Kickoff meeting scheduled and held (if needed); Basecamp deadlines assigned post-meeting</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Media schedule Google Sheet set up from template (MCC or non-MCC version)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Community info transferred to Notion/reporting system (name, platforms, property status, URLs)</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- PAID SEARCH -->
+      <div class="task-group" data-grp="search" style="margin-top:20px;">
+        <div class="tg-title">🔍 Paid Search — Google Ads Setup</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Google Ads access confirmed (P11 MCC or client-owned — document which)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">GA4 access confirmed and linked to Google Ads account</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">GTM access confirmed; container identified and documented</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Conversion actions created in GTM → GA4 → imported into Google Ads</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Test conversions verified — at least one test fire confirmed in Tag Assistant</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaign structure built (Search, Brand, Competitor — campaigns, ad groups, match types)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Keyword research completed; exported to shared Google Sheet</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Negative keyword list built and applied to all campaigns</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Negative location exclusions added (cities, zip codes per client intake)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Bidding strategy set (tCPA / Max Conversions / Max Clicks for new account)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">UTM parameters configured and applied to all ad destination URLs</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Ad copy written (RSA headlines + descriptions); added to Google Sheet for review</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Ad copy Google Sheet link shared with client via Softr for approval <em>⬅ Awaiting client</em></span><span class="badge b-client">Client</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Ad extensions added (sitelinks, callouts, structured snippets, call extension, location)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaign settings QA'd: geo targeting, ad schedule, search partners, device bid adj.</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaign structure exported to Google Sheet (FYI copy for client + internal reference)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Account Manager final sign-off before campaign activation</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaigns activated / launch date confirmed and communicated to client</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- PAID SOCIAL -->
+      <div class="task-group" data-grp="social" style="margin-top:20px;">
+        <div class="tg-title">📱 Paid Social — Meta Ads</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Meta Business Suite / Pages partner access confirmed</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Meta Ads Manager access confirmed</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Meta Pixel installed and events firing confirmed (via Events Manager)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Custom audiences created (website visitors, lookalike audiences, retargeting segments)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaign objective confirmed (Leads, Traffic, Conversions)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Ad sets built with targeting (geo, age/demo, interest, behavioral layers)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Ad creative designed for all placements (1:1, 4:5, 9:16, 1.91:1)</span><span class="badge b-creative">Creative</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Ad copy written (headline, primary text, CTA, link description)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Meta public ad preview link shared with client for approval <em>⬅ Awaiting client</em></span><span class="badge b-client">Client</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">UTMs applied to all ad destination URLs</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaigns activated</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- SEO -->
+      <div class="task-group" data-grp="seo" style="margin-top:20px;">
+        <div class="tg-title">📈 SEO</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Google Search Console access confirmed</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Google Business Profile access confirmed; profile optimized (hours, photos, description)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Technical site audit completed (crawl errors, page speed, mobile, schema markup)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Website copy scraped and analyzed for tone, keyword gaps, on-page opportunities</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Keyword research completed — primary, secondary, and long-tail documented</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Competitor SEO analysis completed</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">On-page optimization recommendations documented and shared with Acct Mgr</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Local citations and NAP consistency verified across directories</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- DISPLAY -->
+      <div class="task-group" data-grp="display" style="margin-top:20px;">
+        <div class="tg-title">🖼 Display / Remarketing</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Remarketing audience created in Google Ads (all visitors + key page segments)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Display ad specs briefed to Creative team (all required sizes confirmed)</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Display creatives designed: 300×250, 728×90, 160×600, 300×600, 320×50</span><span class="badge b-creative">Creative</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Display creatives shared with client for approval via Softr <em>⬅ Awaiting client</em></span><span class="badge b-client">Client</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaign targeting configured (custom intent, in-market audiences, competitor sites)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Frequency caps set; exclusion lists applied (children's sites, low-quality placements)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">UTMs confirmed on all display destination URLs</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaigns activated</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- EMAIL -->
+      <div class="task-group" data-grp="email" style="margin-top:20px;">
+        <div class="tg-title">📧 Email Marketing</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Email platform access confirmed (Mailchimp or client platform)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Existing contact list imported and segmented (prospects, leads, current residents)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">On-brand email template designed (header, body, CTA, footer)</span><span class="badge b-creative">Creative</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">CAN-SPAM compliance confirmed (unsubscribe link, physical mailing address in footer)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">First campaign drafted; sent to Acct Mgr for client approval <em>⬅ Awaiting client</em></span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaign scheduled and deployed</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- CTV -->
+      <div class="task-group" data-grp="ctv" style="margin-top:20px;">
+        <div class="tg-title">📺 CTV / Streaming</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">CTV audience segments defined (geo, demo, behavioral, in-market)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Video asset specs communicated to client or Creative (15s / 30s / :06 bumper)</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Video assets received from client or P11creative Creative production initiated</span><span class="badge b-creative">Creative</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">CTV campaign built with targeting configured</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Campaign launched; impression and completion tracking confirmed</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- ILS -->
+      <div class="task-group" data-grp="ils" style="margin-top:20px;">
+        <div class="tg-title">🏢 ILS Management — Zillow / CoStar</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">ILS platform access granted or new account created</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Property details entered: name, address, description, unit types, pricing, availability</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Floor plans uploaded with accurate sq ft and pricing</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Photos uploaded (min. 15 high-res); Matterport / virtual tour linked if available</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Amenities list completed and categorized</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Listing reviewed and approved by client <em>⬅ Awaiting client</em></span><span class="badge b-client">Client</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Lead routing confirmed (leads going to correct CRM / leasing team contact)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Listing published and confirmed live</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- REPORTING -->
+      <div class="task-group" data-grp="reporting" style="margin-top:20px;">
+        <div class="tg-title">📊 Reporting &amp; Analytics Setup</div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">GA4 property confirmed with clean data (filters set, spam excluded)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Google Ads linked and data confirmed flowing into GA4</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Looker Studio report template copied and connected to client data sources</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">MTD pacing report configured and first version reviewed internally</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Month-end invoicing report set up in Accelo</span><span class="badge b-admin">Admin</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Report distribution list confirmed with client (who receives, frequency)</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Looker / reporting access link added to Softr client portal</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row"><input type="checkbox" class="task-cb"><span class="task-text">Google Drive Active folder set up with media schedule template copy</span><span class="badge b-digital">Digital</span></div>
+      </div>
+
+      <!-- PRE-LAUNCH QA -->
+      <div class="task-group" data-grp="prelaunch" style="margin-top:20px;">
+        <div class="tg-title warn">✅ Pre-Launch QA — Do Not Skip</div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">All platform invites accepted — no pending access requests remain</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">All conversion actions firing in production (Tag Assistant verified, not just preview mode)</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">All ad copy approved by client in writing (email or Softr comment)</span><span class="badge b-client">Client</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">All creative assets approved by client</span><span class="badge b-client">Client</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">UTMs verified on every destination URL — use UTM checker or click-through test</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">All destination URLs tested — no 404s, all contact forms submit and confirm successfully</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">Payment / billing method confirmed and active in each ad platform</span><span class="badge b-admin">Admin</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text"><strong>Fair Housing compliance</strong> verified across ALL ad copy — no protected class language</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">All campaign budgets verified against approved SOW line items</span><span class="badge b-acct">Acct Mgr</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text">Looker reporting confirmed live with first data visible</span><span class="badge b-digital">Digital</span></div>
+        <div class="task-row pre-launch"><input type="checkbox" class="task-cb"><span class="task-text"><strong>Account Manager final sign-off — authorize campaign launch</strong></span><span class="badge b-acct">Acct Mgr</span></div>
+      </div>
+
+    </div>
+    <!-- END CHECKLIST -->
+
+  </div>
+  <!-- END INTERNAL VIEW -->
+
+</div>
+<!-- END MAIN -->
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div><strong>P11creative</strong> · 20331 Irvine Avenue, E5, Newport Beach, CA 92660 · 949.691.3040 · P11.com</div>
+  <div class="footer-tag">Amplified Real Estate Marketing.</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module" src="./frontend/src/main.js"></script>
+</body>
+</html>

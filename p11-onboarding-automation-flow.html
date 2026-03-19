@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P11creative | Onboarding Automation Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:      #FA4614;
+  --red-bg:   rgba(250,70,20,0.07);
+  --charcoal: #1A1A1A;
+  --c2:       #2D2D2D;
+  --c3:       #444;
+  --gray:     #767676;
+  --lg:       #ABABAB;
+  --border:   #E3E2DF;
+  --bg:       #F5F5F3;
+  --white:    #FFFFFF;
+  --green:    #1A9E6A;
+  --green-bg: rgba(26,158,106,0.08);
+  --blue:     #1D4ED8;
+  --blue-bg:  rgba(29,78,216,0.08);
+  --purple:   #6D28D9;
+  --purple-bg:rgba(109,40,217,0.08);
+  --amber:    #D97706;
+  --amber-bg: rgba(217,119,6,0.09);
+  --teal:     #0891B2;
+  --teal-bg:  rgba(8,145,178,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--charcoal); -webkit-font-smoothing:antialiased; }
+
+.header {
+  background:var(--charcoal); padding:0 44px;
+  display:flex; align-items:center; justify-content:space-between;
+  min-height:64px; border-bottom:3px solid var(--red);
+}
+.logo-name { font-size:16px; font-weight:800; color:white; }
+.logo-name span { color:var(--red); }
+.logo-sub { font-size:10px; color:rgba(255,255,255,0.3); margin-top:1px; letter-spacing:0.08em; }
+.header-pill {
+  font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;
+  background:var(--red); color:white; padding:6px 14px; border-radius:3px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.header-nav a {
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.82);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+.header-nav a.active {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+}
+
+.main { max-width:1100px; margin:0 auto; padding:32px 44px; }
+
+/* ── intro ── */
+.intro {
+  background:white; border:1px solid var(--border); border-radius:10px;
+  padding:28px 32px; margin-bottom:28px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+.intro h1 { font-size:22px; font-weight:900; color:var(--charcoal); margin-bottom:8px; letter-spacing:-0.3px; }
+.intro p  { font-size:13px; color:var(--gray); line-height:1.7; max-width:760px; }
+.tool-legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+.tool-chip {
+  font-size:11px; font-weight:700; padding:4px 12px; border-radius:3px;
+  display:flex; align-items:center; gap:5px;
+}
+
+/* ── section headers ── */
+.sec-head {
+  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.12em;
+  color:var(--lg); margin-bottom:16px; margin-top:8px;
+  display:flex; align-items:center; gap:10px;
+}
+.sec-head::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── trigger box ── */
+.trigger-box {
+  background:var(--charcoal); color:white; border-radius:10px;
+  padding:18px 22px; margin-bottom:20px; display:flex; align-items:center; gap:14px;
+  border-left:4px solid var(--red);
+}
+.tb-icon { font-size:22px; flex-shrink:0; }
+.tb-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:rgba(255,255,255,0.4); margin-bottom:3px; }
+.tb-title { font-size:15px; font-weight:800; color:white; }
+.tb-sub   { font-size:12px; color:rgba(255,255,255,0.5); margin-top:2px; }
+
+/* ── flow columns ── */
+.flow-cols { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px; }
+.flow-card {
+  background:white; border:1px solid var(--border); border-radius:10px;
+  padding:22px; box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+.fc-head {
+  display:flex; align-items:center; gap:10px; margin-bottom:16px;
+  padding-bottom:12px; border-bottom:2px solid var(--border);
+}
+.fc-icon {
+  width:36px; height:36px; border-radius:7px; display:flex;
+  align-items:center; justify-content:center; font-size:17px; flex-shrink:0;
+}
+.fc-name { font-size:13px; font-weight:800; color:var(--charcoal); }
+.fc-desc { font-size:11px; color:var(--gray); margin-top:1px; }
+
+/* ── step list ── */
+.step-list { display:flex; flex-direction:column; gap:8px; }
+.step {
+  display:flex; gap:10px; padding:10px 12px;
+  background:var(--bg); border-radius:7px; align-items:flex-start;
+  border:1px solid transparent; transition:border-color 0.15s;
+}
+.step:hover { border-color:var(--border); }
+.step-num {
+  width:22px; height:22px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:800; color:white; margin-top:1px;
+}
+.step-content { flex:1; }
+.step-action { font-size:12.5px; font-weight:700; color:var(--charcoal); line-height:1.35; }
+.step-detail { font-size:11.5px; color:var(--gray); margin-top:3px; line-height:1.5; }
+.step-tag {
+  font-size:10px; font-weight:700; padding:2px 7px; border-radius:3px;
+  white-space:nowrap; margin-top:5px; display:inline-block;
+  text-transform:uppercase; letter-spacing:0.04em;
+}
+.tag-auto   { background:var(--green-bg); color:var(--green); }
+.tag-manual { background:var(--amber-bg); color:var(--amber); }
+.tag-verify { background:var(--blue-bg); color:var(--blue); }
+.tag-client { background:var(--red-bg); color:var(--red); }
+.tag-future { background:var(--purple-bg); color:var(--purple); }
+
+/* ── connector arrow ── */
+.arrow {
+  text-align:center; color:var(--red); font-size:20px; margin:4px 0;
+  font-weight:900;
+}
+
+/* ── full-width flow ── */
+.flow-full {
+  background:white; border:1px solid var(--border); border-radius:10px;
+  padding:22px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* ── zap map ── */
+.zap-map { display:flex; flex-direction:column; gap:0; }
+.zap-row {
+  display:flex; align-items:stretch; gap:0;
+  border-bottom:1px solid var(--border);
+}
+.zap-row:last-child { border-bottom:none; }
+.zap-num {
+  width:44px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:900; color:var(--lg);
+  border-right:1px solid var(--border);
+}
+.zap-body { padding:13px 16px; flex:1; }
+.zap-step-title { font-size:13px; font-weight:800; color:var(--charcoal); margin-bottom:3px; }
+.zap-detail { font-size:12px; color:var(--gray); line-height:1.6; }
+.zap-detail code {
+  background:var(--bg); border:1px solid var(--border); border-radius:3px;
+  padding:1px 6px; font-size:11px; color:var(--c2); font-family:monospace;
+}
+.zap-tags { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
+.zap-badge {
+  font-size:10px; font-weight:700; padding:3px 9px; border-radius:3px;
+  text-transform:uppercase; letter-spacing:0.04em;
+}
+.zb-trigger { background:var(--charcoal); color:white; }
+.zb-action  { background:var(--blue-bg); color:var(--blue); }
+.zb-filter  { background:var(--amber-bg); color:var(--amber); }
+.zb-formatter { background:var(--purple-bg); color:var(--purple); }
+
+/* ── notes / callouts ── */
+.note {
+  padding:13px 16px; border-radius:7px; margin-bottom:10px;
+  display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.6;
+}
+.note-icon { font-size:16px; flex-shrink:0; }
+.note-red    { background:var(--red-bg); border-left:3px solid var(--red); }
+.note-green  { background:var(--green-bg); border-left:3px solid var(--green); }
+.note-amber  { background:var(--amber-bg); border-left:3px solid var(--amber); }
+.note-blue   { background:var(--blue-bg); border-left:3px solid var(--blue); }
+.note-purple { background:var(--purple-bg); border-left:3px solid var(--purple); }
+
+/* ── priority table ── */
+.pri-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.pri-table th {
+  text-align:left; padding:9px 14px; background:var(--bg);
+  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;
+  color:var(--gray); border-bottom:2px solid var(--border);
+}
+.pri-table td {
+  padding:11px 14px; border-bottom:1px solid var(--border);
+  color:var(--c3); vertical-align:top; line-height:1.5;
+}
+.pri-table tr:last-child td { border-bottom:none; }
+.pri-dot {
+  width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px;
+}
+
+/* ── footer ── */
+.footer {
+  background:var(--charcoal); color:rgba(255,255,255,0.3); border-top:2px solid var(--red);
+  padding:16px 44px; display:flex; justify-content:space-between; align-items:center;
+  font-size:11px; margin-top:40px;
+}
+.footer strong { color:white; }
+.footer-tag { color:var(--red); font-weight:700; text-transform:uppercase; letter-spacing:0.1em; }
+
+@media (max-width:768px) {
+  .header, .main, .footer { padding-left:20px; padding-right:20px; }
+  .flow-cols { grid-template-columns:1fr; }
+  .header { align-items: flex-start; padding-top: 14px; padding-bottom: 14px; }
+  .header-right { justify-content: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="logo-name">P11<span>creative</span></div>
+    <div class="logo-sub">Onboarding Automation Blueprint</div>
+  </div>
+  <div class="header-right">
+    <nav class="header-nav" aria-label="App Navigation">
+      <a href="/">Home</a>
+      <a href="/p11-onboarding-dashboard.html">Dashboard</a>
+      <a href="/internal.html">Internal Portal</a>
+      <a class="active" href="/p11-onboarding-automation-flow.html">Automation Flow</a>
+      <a href="/p11-onboarding-project-brief.html">Project Brief</a>
+    </nav>
+    <div class="header-pill">Integration Guide</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- INTRO -->
+  <div class="intro">
+    <h1>Onboarding Automation Flow</h1>
+    <p>This document maps the full automation architecture for P11creative's client onboarding system. It covers what fires automatically when a new client is created, what requires manual steps, and the recommended Zapier / Make.com (formerly Integromat) logic to connect the intake questionnaire to Accelo, Basecamp, Dropbox, Google Drive, and Softr.</p>
+    <div class="tool-legend">
+      <div class="tool-chip" style="background:var(--green-bg); color:var(--green);">⚡ Auto — Fully automated</div>
+      <div class="tool-chip" style="background:var(--amber-bg); color:var(--amber);">✋ Manual — Human required</div>
+      <div class="tool-chip" style="background:var(--blue-bg); color:var(--blue);">🔍 Verify — Auto + human check</div>
+      <div class="tool-chip" style="background:var(--purple-bg); color:var(--purple);">🔮 Phase 2 — Future build</div>
+    </div>
+  </div>
+
+  <!-- TRIGGER -->
+  <div class="sec-head">Automation Trigger</div>
+  <div class="trigger-box">
+    <span class="tb-icon">📋</span>
+    <div>
+      <div class="tb-label">Primary Trigger</div>
+      <div class="tb-title">Client Intake Questionnaire Submitted (Jotform / Softr Form)</div>
+      <div class="tb-sub">All automations below fire from a single form submission event. The form submission is the single source of truth for the new client record.</div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+
+  <!-- ZAP 1 — MAIN INTAKE ZAP -->
+  <div class="sec-head" style="margin-top:18px;">Zap 1 — Master Intake Handler (Zapier / Make.com)</div>
+  <div class="flow-full">
+    <div class="fc-head">
+      <div class="fc-icon" style="background:var(--charcoal);">⚡</div>
+      <div>
+        <div class="fc-name">Master New Client Zap</div>
+        <div class="fc-desc">Fires once per form submission. Creates all records, folders, and project structures automatically.</div>
+      </div>
+    </div>
+    <div class="zap-map">
+      <div class="zap-row">
+        <div class="zap-num">1</div>
+        <div class="zap-body">
+          <div class="zap-step-title">TRIGGER — Jotform: New Submission</div>
+          <div class="zap-detail">Watch the P11 Digital Marketing Intake Questionnaire form. On each new submission, pull all fields: community name, type, contacts, website URL, services selected, go-live date, platform access status.</div>
+          <div class="zap-tags"><span class="zap-badge zb-trigger">Trigger</span><span class="zap-badge zb-formatter">Jotform → Webhooks API</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">2</div>
+        <div class="zap-body">
+          <div class="zap-step-title">FORMATTER — Parse &amp; Normalize Data</div>
+          <div class="zap-detail">Clean up the community name (trim whitespace, title case). Format the go-live date as <code>YYYY-MM-DD</code>. Split services selected into a comma-delimited list. Extract primary contact name/email separately from billing contact.</div>
+          <div class="zap-tags"><span class="zap-badge zb-formatter">Formatter step</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">3</div>
+        <div class="zap-body">
+          <div class="zap-step-title">FILTER — Is This a New Company in Accelo?</div>
+          <div class="zap-detail">Search Accelo by company name. If a match is found → skip company creation, use existing Accelo Company ID. If no match → proceed to Step 4 to create new company. This prevents duplicate records for existing clients adding a new community.</div>
+          <div class="zap-tags"><span class="zap-badge zb-filter">Filter / Router</span><span class="zap-badge zb-action">Accelo: Search Company</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">4</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Accelo: Create Company (if new)</div>
+          <div class="zap-detail">Map fields: <code>Company Name</code> = community name, <code>Primary Contact</code> = reporting contact name/email, <code>Billing Contact</code> = billing contact name/email (from form). Tag with community type (Multi-Family, Homebuilding, etc.).</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Accelo API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">5</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Accelo: Create Retainer + Service Lines</div>
+          <div class="zap-detail">Use the services selected in the form to look up the correct Accelo Template IDs and create the retainer. Map: start date = form go-live date. Services: Paid Search (396), Paid Social (369), SEO (367), Email (368), ILS (374), Media Planning (373), Display (custom ID). Output: Accelo Retainer ID for use in later steps.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Accelo API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">6</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Accelo: Create Project with Tasks</div>
+          <div class="zap-detail">Create the onboarding project under the new company. Auto-assign tasks based on services selected using template logic. Map assignees from P11 role lookup table. Set due dates based on start date + standard SLA offsets (e.g., admin setup = Day 2, campaign build = Day 9).</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Accelo API</span><span class="tag-verify" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Verify</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">7</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Basecamp: Create Project Page</div>
+          <div class="zap-detail">Using the Basecamp API + Webhook, create a new project titled <code>[Community Name] — Onboarding</code>. Auto-generate to-do lists per selected service (Paid Search, Paid Social, SEO, etc.). Add Accelo project link as a pinned message. Post welcome note to Message Board with key dates.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Basecamp API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">8</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Dropbox: Create Public Client Folder</div>
+          <div class="zap-detail">Create folder at path: <code>/P11 Public/Clients/[Community Name]/</code> with standard subfolders: <code>Assets</code>, <code>Logos</code>, <code>Brand Guide</code>, <code>Creative Campaigns</code>, <code>Ad Copy</code>, <code>Demographic Profiles</code>, <code>Other</code>. Add access emails from Softr user list. Capture the public shareable link for use in Step 10.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Dropbox API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">9</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Google Drive: Create Onboarding + Active Folders</div>
+          <div class="zap-detail">Create two folders in P11's shared Google Drive: <code>/Onboarding/[Community Name]/</code> and <code>/Active/[Community Name]/</code>. Make a copy of the Campaign Structure / Keywords / Ad Copy Google Sheet template inside Onboarding folder. Make a copy of the Media Schedule template inside Active folder. Capture shareable links for both.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Google Drive API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">10</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Softr: Create Client Portal User + Community</div>
+          <div class="zap-detail">Create a new Softr user for the reporting contact (name + email from form). Create community record with: community name, type, services (from form), go-live date, Dropbox folder link (from Step 8), Accelo project link (from Step 6). This populates the client-facing onboarding dashboard automatically.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Softr API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">11</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Gmail / Email: Send Client Kickoff Email</div>
+          <div class="zap-detail">Auto-populate the kickoff email template and send to the reporting contact. Include: Softr portal link + login instructions, Ways of Working doc link, Dropbox folder link, process overview (7 stages with timeline), next step (grant platform access with guide links). Route draft to Account Manager for final review before sending, OR send automatically if AM is pre-approved to skip review.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Gmail / Email</span><span class="tag-verify" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">AM Reviews Draft</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">12</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Slack: Notify P11 Team (Internal)</div>
+          <div class="zap-detail">Post to the P11 internal Slack channel (e.g., <code>#new-clients</code> or <code>#digital-team</code>): "🎉 New client onboarded: [Community Name] ([Type]). Go-live: [Date]. Services: [list]. Acct Mgr: [name]. Basecamp → [link]." This replaces the manual "notifying the team" step from the current process.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Slack API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZAP 2 - ACCESS REMINDER -->
+  <div class="arrow">↓</div>
+  <div class="sec-head" style="margin-top:18px;">Zap 2 — Admin Access Follow-Up (Delayed)</div>
+  <div class="flow-full">
+    <div class="fc-head">
+      <div class="fc-icon" style="background:var(--amber-bg);">⏰</div>
+      <div>
+        <div class="fc-name">Access Reminder Sequence</div>
+        <div class="fc-desc">Fires automatically if platform access has not been granted within 48 hours of the kickoff email.</div>
+      </div>
+    </div>
+    <div class="zap-map">
+      <div class="zap-row">
+        <div class="zap-num">1</div>
+        <div class="zap-body">
+          <div class="zap-step-title">TRIGGER — Delay: 48 Hours After Kickoff Email Sent</div>
+          <div class="zap-detail">Use a Delay step in Zapier (or a scheduled Make.com scenario) to wait 48 business hours after the kickoff email timestamp.</div>
+          <div class="zap-tags"><span class="zap-badge zb-trigger">Delay Trigger</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">2</div>
+        <div class="zap-body">
+          <div class="zap-step-title">FILTER — Check: Are All Access Items Checked in Softr?</div>
+          <div class="zap-detail">Check the Softr record for this community. If all platform access items are marked complete → stop (no reminder needed). If any remain unchecked → proceed to reminder.</div>
+          <div class="zap-tags"><span class="zap-badge zb-filter">Filter</span><span class="zap-badge zb-action">Softr: Get Record</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">3</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Send Friendly Reminder Email to Client</div>
+          <div class="zap-detail">Auto-send a short, friendly reminder: "Hey [Name], just a quick note — we're ready to get started on your campaigns as soon as we have access to [list of unchecked platforms]. Here are the how-to guides again: [links]." Signed by Account Manager.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Gmail</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">4</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Notify Account Manager in Slack</div>
+          <div class="zap-detail">Alert the assigned AM: "[Community Name] still needs platform access after 48hrs. Reminder sent automatically. May need a personal follow-up."</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Slack</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZAP 3 - AD COPY APPROVAL -->
+  <div class="arrow">↓</div>
+  <div class="sec-head" style="margin-top:18px;">Zap 3 — Ad Copy &amp; Creative Approval Loop</div>
+  <div class="flow-cols">
+    <div class="flow-card">
+      <div class="fc-head">
+        <div class="fc-icon" style="background:var(--blue-bg);">📝</div>
+        <div>
+          <div class="fc-name">Ad Copy Ready for Approval</div>
+          <div class="fc-desc">Fires when Digital team marks ad copy complete in Basecamp</div>
+        </div>
+      </div>
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num" style="background:var(--blue);">1</div>
+          <div class="step-content">
+            <div class="step-action">Trigger: Basecamp — To-Do Completed</div>
+            <div class="step-detail">Watch for "Ad copy uploaded to Google Sheet" task completion in the Basecamp project.</div>
+            <span class="step-tag tag-auto">Auto</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:var(--blue);">2</div>
+          <div class="step-content">
+            <div class="step-action">Action: Update Softr — Add Ad Copy Review Link</div>
+            <div class="step-detail">Push the Google Sheet shareable URL to the client's Softr portal under "Pending Your Review."</div>
+            <span class="step-tag tag-auto">Auto</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:var(--blue);">3</div>
+          <div class="step-content">
+            <div class="step-action">Action: Email Client — Ad Copy Ready to Review</div>
+            <div class="step-detail">Auto-send: "Your ad copy is ready! Review and leave comments in [link]. Two rounds of revisions are included." Mention 3-business-day response window.</div>
+            <span class="step-tag tag-verify">AM reviews draft</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:var(--blue);">4</div>
+          <div class="step-content">
+            <div class="step-action">Action: Slack — Notify AM &amp; Digital Lead</div>
+            <div class="step-detail">"[Community] ad copy sent to client for approval. Watching for feedback."</div>
+            <span class="step-tag tag-auto">Auto</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flow-card">
+      <div class="fc-head">
+        <div class="fc-icon" style="background:var(--green-bg);">✅</div>
+        <div>
+          <div class="fc-name">Approval Received → Pre-Launch</div>
+          <div class="fc-desc">Fires when AM marks client approval confirmed</div>
+        </div>
+      </div>
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num" style="background:var(--green);">1</div>
+          <div class="step-content">
+            <div class="step-action">Trigger: Basecamp — "Client approval received" task checked</div>
+            <div class="step-detail">Account Manager manually checks this task once written approval is received from client (email or Softr comment).</div>
+            <span class="step-tag tag-manual">Manual</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:var(--green);">2</div>
+          <div class="step-content">
+            <div class="step-action">Action: Update Softr — Advance to Pre-Launch Stage</div>
+            <div class="step-detail">Update community record stage from "Campaign Build" to "Pre-Launch Review." This updates the client-facing Dominos tracker automatically.</div>
+            <span class="step-tag tag-auto">Auto</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:var(--green);">3</div>
+          <div class="step-content">
+            <div class="step-action">Action: Basecamp — Assign Pre-Launch QA Checklist</div>
+            <div class="step-detail">Auto-create the Pre-Launch QA to-do list in Basecamp with all items and correct owner assignments (AM, Digital, Admin).</div>
+            <span class="step-tag tag-auto">Auto</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:var(--green);">4</div>
+          <div class="step-content">
+            <div class="step-action">Action: Slack — Notify Team to Begin Pre-Launch QA</div>
+            <div class="step-detail">"🟢 [Community] ad copy approved. Pre-Launch QA checklist is now active in Basecamp. Go-live: [date]."</div>
+            <span class="step-tag tag-auto">Auto</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZAP 4 — GO LIVE -->
+  <div class="sec-head">Zap 4 — Campaign Launch &amp; Live Confirmation</div>
+  <div class="flow-full">
+    <div class="fc-head">
+      <div class="fc-icon" style="background:var(--red-bg);">🚀</div>
+      <div>
+        <div class="fc-name">Launch Day Automation</div>
+        <div class="fc-desc">Fires when Account Manager checks "Authorize campaign launch" in Basecamp Pre-Launch QA checklist</div>
+      </div>
+    </div>
+    <div class="zap-map">
+      <div class="zap-row">
+        <div class="zap-num">1</div>
+        <div class="zap-body">
+          <div class="zap-step-title">TRIGGER — Basecamp: "Account Manager final sign-off" To-Do Completed</div>
+          <div class="zap-tags"><span class="zap-badge zb-trigger">Trigger</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">2</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Softr: Update Community Stage to "GO LIVE"</div>
+          <div class="zap-detail">Update the community record. The client-facing tracker advances to the final stage — the 🚀 GO LIVE dot turns active.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Softr API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">3</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Email Client: Campaigns Are Live!</div>
+          <div class="zap-detail">Send branded launch confirmation email. Include: which campaigns are live, expected ramp-up period (7–14 days for learning phase), when to expect first report, reporting portal link, AM contact info for questions.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Gmail</span><span class="tag-verify" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">AM reviews draft</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">4</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Move Google Drive Folder from Onboarding → Active</div>
+          <div class="zap-detail">Move (or copy) campaign documents from <code>/Onboarding/[Community]/</code> to <code>/Active/[Community]/</code>. Archive the onboarding folder. The media schedule template in Active becomes the primary working file.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Google Drive API</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">5</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Accelo: Update Project Status to Active</div>
+          <div class="zap-detail">Mark the onboarding project complete. Ensure retainer is active and billing is running.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Accelo API</span><span class="tag-verify" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Verify</span></div>
+        </div>
+      </div>
+      <div class="zap-row">
+        <div class="zap-num">6</div>
+        <div class="zap-body">
+          <div class="zap-step-title">ACTION — Slack: Announce Launch to P11 Team</div>
+          <div class="zap-detail">"🚀 [Community Name] IS LIVE! Campaigns launched on [date]. Great work, team. Next report: [date]." Post to #wins or #digital-team channel.</div>
+          <div class="zap-tags"><span class="zap-badge zb-action">Slack</span><span class="tag-auto" style="font-size:10px; padding:3px 8px; border-radius:3px; font-weight:700;">Auto</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPLEMENTATION PRIORITY TABLE -->
+  <div class="sec-head" style="margin-top:28px;">Implementation Priority — What to Build First</div>
+  <div class="flow-full" style="padding:0; overflow:hidden;">
+    <table class="pri-table">
+      <thead>
+        <tr>
+          <th>Priority</th>
+          <th>Automation</th>
+          <th>Tool(s)</th>
+          <th>Effort</th>
+          <th>Impact</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--red)"></span><strong>1 — Now</strong></td>
+          <td>Form submission → Basecamp project auto-creation</td>
+          <td>Zapier + Basecamp API</td>
+          <td>Medium</td>
+          <td>🔥 Very High</td>
+          <td>Eliminates the biggest manual bottleneck. Use Zapier's native Basecamp integration.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--red)"></span><strong>1 — Now</strong></td>
+          <td>Form submission → Accelo company + retainer creation</td>
+          <td>Zapier + Accelo API</td>
+          <td>Medium</td>
+          <td>🔥 Very High</td>
+          <td>Accelo has a Zapier integration. Service template IDs are already documented.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--red)"></span><strong>1 — Now</strong></td>
+          <td>Dropbox folder auto-creation with subfolders</td>
+          <td>Zapier + Dropbox API</td>
+          <td>Low</td>
+          <td>🔥 High</td>
+          <td>Zapier has native Dropbox folder creation. Sub-folder creation requires a multi-step Zap or Make.com.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--amber)"></span><strong>2 — Soon</strong></td>
+          <td>Kickoff email auto-draft to Account Manager</td>
+          <td>Zapier + Gmail</td>
+          <td>Low</td>
+          <td>High</td>
+          <td>Create a Gmail draft (not auto-send) so AM can personalize before sending. Reduces 30 min of work to 5 min.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--amber)"></span><strong>2 — Soon</strong></td>
+          <td>Softr client portal auto-setup</td>
+          <td>Zapier + Softr API</td>
+          <td>Medium</td>
+          <td>High</td>
+          <td>Softr has a REST API. Create user + community + services record. Check Softr docs for field mapping.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--amber)"></span><strong>2 — Soon</strong></td>
+          <td>Slack new client notification to P11 team</td>
+          <td>Zapier + Slack</td>
+          <td>Very Low</td>
+          <td>Medium</td>
+          <td>Simplest Zap in the list. Build this first as a "quick win" to prove automation value to the team.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--purple)"></span><strong>3 — Phase 2</strong></td>
+          <td>Google Drive folder auto-creation with template copies</td>
+          <td>Make.com + Google Drive</td>
+          <td>Medium-High</td>
+          <td>Medium</td>
+          <td>Requires Make.com (better Google Drive support than Zapier). Needs "copy file" + "move to folder" steps.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--purple)"></span><strong>3 — Phase 2</strong></td>
+          <td>Access reminder sequence (48hr delay)</td>
+          <td>Zapier + Gmail</td>
+          <td>Medium</td>
+          <td>Medium</td>
+          <td>Requires Zapier's Delay feature (Zapier Professional plan). High ROI for reducing AM follow-up time.</td>
+        </tr>
+        <tr>
+          <td><span class="pri-dot" style="background:var(--purple)"></span><strong>3 — Phase 2</strong></td>
+          <td>Stage advancement → client tracker update</td>
+          <td>Make.com / Softr API + Basecamp</td>
+          <td>High</td>
+          <td>High</td>
+          <td>Most complex automation. Requires bi-directional sync between Basecamp task completions and Softr stage field.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- IMPORTANT NOTES -->
+  <div class="sec-head" style="margin-top:28px;">Important Setup Notes</div>
+  <div class="note note-red">
+    <span class="note-icon">🔑</span>
+    <div><strong>API Keys needed:</strong> You'll need active API credentials for Jotform, Accelo, Basecamp, Dropbox, Google Drive, Softr, and Slack. Store all credentials in a secure password manager (1Password or similar) — never hardcode in Zapier step names or descriptions.</div>
+  </div>
+  <div class="note note-amber">
+    <span class="note-icon">⚠️</span>
+    <div><strong>Jotform vs. Softr form:</strong> If you migrate the intake questionnaire from Jotform to a native Softr form, you'll need to update Zap 1 Trigger to watch the Softr form webhook instead. The field mapping will change. Decide on the form tool before building automations.</div>
+  </div>
+  <div class="note note-blue">
+    <span class="note-icon">💡</span>
+    <div><strong>Zapier vs. Make.com:</strong> Zapier is easier to set up but more expensive at scale. Make.com (formerly Integromat) is more powerful for complex multi-step logic, branching, and Google Drive operations. Recommendation: start with Zapier for Phases 1–2, then evaluate Make.com for Phase 3 automations.</div>
+  </div>
+  <div class="note note-green">
+    <span class="note-icon">✅</span>
+    <div><strong>Sensitive data:</strong> Payment / billing info should NOT pass through Zapier. Collect billing details separately via a secure form (Stripe, Typeform with encryption, or direct to Admin). Instruct clients never to email credit card or banking information.</div>
+  </div>
+  <div class="note note-purple">
+    <span class="note-icon">🔮</span>
+    <div><strong>Phase 3 moonshot:</strong> Once the core automation is running, consider building a Notion database as the "brain" that all tools feed into — community name, Accelo ID, Basecamp ID, Softr ID, Google Drive links, stage, services, go-live date — all in one place. This becomes the master record that powers dashboards, reporting, and client communication at scale.</div>
+  </div>
+
+</div>
+<!-- END MAIN -->
+
+<footer class="footer">
+  <div><strong>P11creative</strong> · Internal Use Only · Onboarding Automation Blueprint v1.0</div>
+  <div class="footer-tag">Amplified Real Estate Marketing.</div>
+</footer>
+
+</body>
+</html>

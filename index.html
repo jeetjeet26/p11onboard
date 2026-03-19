@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P11creative | Onboarding App Home</title>
+    <style>
+      :root {
+        --red: #fa4614;
+        --charcoal: #1a1a1a;
+        --charcoal-2: #2d2d2d;
+        --bg: #f5f5f3;
+        --white: #ffffff;
+        --border: #e3e2df;
+        --gray: #767676;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--charcoal);
+      }
+
+      .header {
+        background: var(--charcoal);
+        color: white;
+        border-bottom: 3px solid var(--red);
+        padding: 16px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 4px;
+        background: var(--red);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+      }
+
+      .brand-title {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.2px;
+      }
+
+      .brand-title span {
+        color: var(--red);
+      }
+
+      .brand-sub {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.56);
+        margin-top: 1px;
+      }
+
+      .header-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .header-links a {
+        color: rgba(255, 255, 255, 0.86);
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        padding: 7px 12px;
+      }
+
+      .header-links a.active {
+        background: var(--red);
+        border-color: var(--red);
+        color: white;
+      }
+
+      .main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 28px 24px 36px;
+      }
+
+      .hero {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 18px;
+      }
+
+      .hero h1 {
+        margin: 0 0 10px;
+        font-size: 28px;
+        letter-spacing: -0.4px;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--gray);
+        line-height: 1.65;
+        max-width: 760px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card-link {
+        display: block;
+        text-decoration: none;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        color: inherit;
+      }
+
+      .card-link:hover {
+        border-color: var(--red);
+      }
+
+      .card-label {
+        display: inline-block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+        color: var(--gray);
+        margin-bottom: 10px;
+      }
+
+      .card-title {
+        font-size: 17px;
+        font-weight: 800;
+        margin-bottom: 8px;
+      }
+
+      .card-copy {
+        margin: 0;
+        color: var(--gray);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <div class="mark">P11</div>
+        <div>
+          <div class="brand-title">P11<span>creative</span></div>
+          <div class="brand-sub">Client Onboarding App</div>
+        </div>
+      </div>
+      <nav class="header-links" aria-label="App Navigation">
+        <a class="active" href="/">Home</a>
+        <a href="/p11-onboarding-dashboard.html">Dashboard</a>
+        <a href="/internal.html">Internal Portal</a>
+        <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
+        <a href="/p11-onboarding-project-brief.html">Project Brief</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section class="hero">
+        <h1>Welcome to the P11 Onboarding Workspace</h1>
+        <p>
+          Use this app to onboard new communities under existing company accounts, track onboarding stages,
+          and review implementation docs for automation and internal rollout.
+        </p>
+      </section>
+
+      <section class="grid">
+        <a class="card-link" href="/p11-onboarding-dashboard.html">
+          <span class="card-label">Portal</span>
+          <div class="card-title">Onboarding Dashboard</div>
+          <p class="card-copy">
+            Login-required onboarding form and client/internal views for company-linked intake workflows.
+          </p>
+        </a>
+        <a class="card-link" href="/internal.html">
+          <span class="card-label">Private</span>
+          <div class="card-title">Internal Portal</div>
+          <p class="card-copy">
+            Internal-only login with global visibility across all companies and communities in onboarding.
+          </p>
+        </a>
+        <a class="card-link" href="/p11-onboarding-automation-flow.html">
+          <span class="card-label">Architecture</span>
+          <div class="card-title">Automation Flow</div>
+          <p class="card-copy">
+            End-to-end blueprint for triggers and system handoffs across Accelo, Basecamp, Dropbox, and more.
+          </p>
+        </a>
+        <a class="card-link" href="/p11-onboarding-project-brief.html">
+          <span class="card-label">Context</span>
+          <div class="card-title">Project Brief</div>
+          <p class="card-copy">
+            Business context, objectives, and status summary for the onboarding implementation.
+          </p>
+        </a>
+      </section>
+    </main>
+  </body>
+</html>

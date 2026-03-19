@@ -1,0 +1,14 @@
+{
+  "name": "p11-onboarding-portal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host localhost --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host localhost --port 3000",
+    "start": "node server.mjs"
+  },
+  "devDependencies": {
+    "vite": "latest"
+  }
+}
