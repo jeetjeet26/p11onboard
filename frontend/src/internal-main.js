@@ -185,7 +185,6 @@ async function handleCreateInvite(event) {
   const email = document.getElementById("inviteEmail")?.value?.trim();
   const fullName = document.getElementById("inviteFullName")?.value?.trim() || null;
   const portalRole = document.getElementById("inviteRole")?.value || "internal";
-  const expiresHours = Number(document.getElementById("inviteExpiryHours")?.value || 168);
   const linkOutput = document.getElementById("inviteLink");
 
   if (!email) {
@@ -200,7 +199,6 @@ async function handleCreateInvite(event) {
       email,
       fullName,
       portalRole,
-      expiresInHours: Number.isFinite(expiresHours) ? expiresHours : 168,
       inviteBaseUrl: getInviteBaseUrl(),
     });
     if (linkOutput) linkOutput.value = result?.invite_url || "";

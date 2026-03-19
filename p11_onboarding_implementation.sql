@@ -1990,7 +1990,7 @@ create table if not exists onboarding.internal_signup_invite (
   invited_full_name text,
   portal_role text not null default 'internal',
   invited_by_auth_user_id uuid not null,
-  expires_at timestamptz not null,
+  expires_at timestamptz,
   redeemed_at timestamptz,
   redeemed_by_auth_user_id uuid,
   metadata_json jsonb not null default '{}'::jsonb,
@@ -2007,6 +2007,9 @@ create index if not exists idx_internal_signup_invite_email
 
 create index if not exists idx_internal_signup_invite_expires_at
   on onboarding.internal_signup_invite(expires_at);
+
+alter table onboarding.internal_signup_invite
+  alter column expires_at drop not null;
 
 drop trigger if exists trg_internal_user_access_updated_at on onboarding.internal_user_access;
 create trigger trg_internal_user_access_updated_at
@@ -2784,7 +2787,7 @@ begin
     return jsonb_build_object('status', 'invalid');
   end if;
 
-  if v_invite.redeemed_at is not null or v_invite.expires_at <= now() then
+  if v_invite.redeemed_at is not null then
     return jsonb_build_object('status', 'invalid');
   end if;
 
@@ -2794,7 +2797,7 @@ begin
     'invited_email', v_invite.invited_email,
     'invited_full_name', v_invite.invited_full_name,
     'portal_role', v_invite.portal_role,
-    'expires_at', v_invite.expires_at
+    'expires_at', null
   );
 end;
 $$;
@@ -2803,7 +2806,7 @@ create or replace function public.create_internal_signup_invite(
   p_email text,
   p_full_name text default null,
   p_portal_role text default 'internal',
-  p_expires_in_hours integer default 168,
+  p_expires_in_hours integer default null,
   p_invite_base_url text default null
 )
 returns jsonb
@@ -2816,8 +2819,7 @@ declare
   v_email text := lower(trim(coalesce(p_email, '')));
   v_full_name text := nullif(trim(coalesce(p_full_name, '')), '');
   v_portal_role text := lower(trim(coalesce(p_portal_role, 'internal')));
-  v_expires_in_hours integer := greatest(1, least(coalesce(p_expires_in_hours, 168), 720));
-  v_expires_at timestamptz := now() + make_interval(hours => v_expires_in_hours);
+  v_expires_at timestamptz := null;
   v_token text;
   v_token_hash text;
   v_invite_id bigint;
@@ -2877,7 +2879,7 @@ begin
     'invite_url', v_invite_url,
     'invited_email', v_email,
     'portal_role', v_portal_role,
-    'expires_at', v_expires_at
+    'expires_at', null
   );
 end;
 $$;
@@ -2930,10 +2932,6 @@ begin
 
   if v_invite.redeemed_at is not null then
     raise exception 'Invite is already used';
-  end if;
-
-  if v_invite.expires_at <= now() then
-    raise exception 'Invite is expired';
   end if;
 
   if v_session_email = '' then

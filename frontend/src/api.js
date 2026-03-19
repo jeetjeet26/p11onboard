@@ -230,14 +230,13 @@ export async function createInternalSignupInvite({
   email,
   fullName = null,
   portalRole = "internal",
-  expiresInHours = 168,
   inviteBaseUrl = null,
 }) {
   const { data, error } = await supabase.rpc("create_internal_signup_invite", {
     p_email: email,
     p_full_name: fullName,
     p_portal_role: portalRole,
-    p_expires_in_hours: expiresInHours,
+    p_expires_in_hours: null,
     p_invite_base_url: inviteBaseUrl,
   });
 

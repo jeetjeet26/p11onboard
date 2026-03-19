@@ -32,9 +32,9 @@ function setInviteLockedState(isLocked) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "Unknown";
+  if (!value) return "Never";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
+  if (Number.isNaN(date.getTime())) return "Never";
   return date.toLocaleString();
 }
 
@@ -77,7 +77,7 @@ async function validateInviteToken() {
     if (!invite || invite.status !== "ok") {
       setInviteLockedState(true);
       setStatusText("Invite is not valid.");
-      setMessage("This invite link is invalid, expired, or already used.", "error");
+      setMessage("This invite link is invalid or already used.", "error");
       return false;
     }
 
