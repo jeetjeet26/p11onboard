@@ -390,6 +390,7 @@ create table if not exists onboarding.onboarding_contact (
   title text,
   is_primary boolean not null default false,
   notes text,
+  source text not null default 'client',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint onboarding_contact_role_check check (
