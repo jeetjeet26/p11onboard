@@ -7,6 +7,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = __dirname;
 const port = Number(process.env.PORT) || 3000;
+const runtimeConfig = {
+  supabaseUrl: process.env.VITE_SUPABASE_URL || "",
+  supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || "",
+  brandAssetBucket: process.env.VITE_BRAND_ASSET_BUCKET || "onboarding-brand-assets",
+};
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -32,6 +37,14 @@ function resolvePath(urlPath) {
 }
 
 const server = http.createServer((req, res) => {
+  const requestPath = (req.url || "/").split("?")[0];
+  if (requestPath === "/runtime-config.js") {
+    res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+    const serialized = JSON.stringify(runtimeConfig).replace(/</g, "\\u003c");
+    res.end(`window.__P11_CONFIG__ = ${serialized};`);
+    return;
+  }
+
   const filePath = resolvePath(req.url || "/");
   if (!filePath.startsWith(rootDir)) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
