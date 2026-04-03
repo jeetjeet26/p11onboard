@@ -3440,6 +3440,7 @@ as $$
 declare
   v_auth_user_id uuid := auth.uid();
   v_is_internal boolean := onboarding.is_internal_user();
+  v_target_client_id bigint;
   v_profile_company_directory_id bigint;
   v_target_company_directory_id bigint;
   v_target_company_id bigint;
@@ -3453,16 +3454,20 @@ begin
     raise exception 'onboarding_client_id is required';
   end if;
 
-  select c.company_directory_id, c.company_id
-  into v_target_company_directory_id, v_target_company_id
+  select c.id, c.company_directory_id, c.company_id
+  into v_target_client_id, v_target_company_directory_id, v_target_company_id
   from onboarding.onboarding_client c
   where c.id = p_onboarding_client_id;
 
-  if v_target_company_directory_id is null then
+  if v_target_client_id is null then
     raise exception 'Onboarding community not found';
   end if;
 
   if not v_is_internal then
+    if v_target_company_directory_id is null then
+      raise exception 'You do not have access to this community';
+    end if;
+
     select p.company_directory_id
     into v_profile_company_directory_id
     from onboarding.portal_user_profile p
