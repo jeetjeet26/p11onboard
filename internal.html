@@ -222,6 +222,27 @@
         min-width: 220px;
       }
 
+      .sub-toolbar {
+        margin-top: 14px;
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .sub-toolbar input {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 9px;
+        font-size: 13px;
+        font-family: inherit;
+        min-width: 240px;
+      }
+
       .sync-status {
         margin: 8px 2px 0;
         color: var(--gray);
@@ -460,6 +481,7 @@
       </div>
       <nav class="nav" aria-label="App Navigation">
         <a class="active" href="/internal.html">Home</a>
+        <a href="/internal-company.html">Companies</a>
         <a href="/internal-client-editor.html">Client Editor</a>
         <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
         <a href="/p11-onboarding-project-brief.html">Project Brief</a>
@@ -509,6 +531,31 @@
           Click a row to open onboarding, or use Edit to update client information.
         </p>
         <div class="sync-status" id="syncQueueStatus"></div>
+
+        <div class="sub-toolbar">
+          <strong style="font-size:12px; letter-spacing:0.04em; text-transform:uppercase;">Company Directory</strong>
+          <input
+            id="companySearchInput"
+            type="text"
+            placeholder="Search company name..."
+            aria-label="Search companies"
+          />
+          <button class="submit-btn" id="companyRefreshBtn" type="button">Refresh Companies</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Communities</th>
+                <th>Last Community Update</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="companyBody"></tbody>
+          </table>
+        </div>
 
         <section class="invite-card" id="inviteCard">
           <h2 class="invite-title">Invite Internal Member</h2>

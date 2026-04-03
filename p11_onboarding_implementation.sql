@@ -3846,7 +3846,8 @@ create or replace function public.internal_list_clients(
   p_stage onboarding.onboarding_stage default null,
   p_status onboarding.onboarding_status default null,
   p_limit integer default 100,
-  p_offset integer default 0
+  p_offset integer default 0,
+  p_company_directory_id bigint default null
 )
 returns jsonb
 language plpgsql
@@ -3885,6 +3886,7 @@ begin
       left join public."Company" pc on pc."ID" = c.company_id
       where (p_stage is null or c.current_stage = p_stage)
         and (p_status is null or c.status = p_status)
+        and (p_company_directory_id is null or c.company_directory_id = p_company_directory_id)
         and (
           v_search is null
           or coalesce(cd.company_name, '') ilike '%' || v_search || '%'
@@ -3929,6 +3931,156 @@ begin
       'limit', v_limit,
       'offset', v_offset
     )
+  );
+end;
+$$;
+
+create or replace function public.internal_list_companies(
+  p_search text default null,
+  p_limit integer default 200,
+  p_offset integer default 0
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_search text := nullif(trim(coalesce(p_search, '')), '');
+  v_limit integer := greatest(1, least(coalesce(p_limit, 200), 500));
+  v_offset integer := greatest(coalesce(p_offset, 0), 0);
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  return (
+    with filtered as (
+      select
+        d.id as company_directory_id,
+        d.company_name,
+        d.public_company_id,
+        count(c.id)::integer as community_count,
+        max(c.updated_at) as last_community_updated_at
+      from onboarding.company_directory d
+      left join onboarding.onboarding_client c on c.company_directory_id = d.id
+      where (
+        v_search is null
+        or d.company_name ilike '%' || v_search || '%'
+      )
+      group by d.id, d.company_name, d.public_company_id
+    ),
+    paged as (
+      select *
+      from filtered f
+      order by f.company_name asc, f.company_directory_id asc
+      limit v_limit
+      offset v_offset
+    )
+    select jsonb_build_object(
+      'items',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'company_directory_id', p.company_directory_id,
+              'company_name', p.company_name,
+              'public_company_id', p.public_company_id,
+              'community_count', p.community_count,
+              'last_community_updated_at', p.last_community_updated_at
+            )
+            order by p.company_name asc, p.company_directory_id asc
+          )
+          from paged p
+        ),
+        '[]'::jsonb
+      ),
+      'total_count',
+      (select count(*)::integer from filtered),
+      'limit', v_limit,
+      'offset', v_offset
+    )
+  );
+end;
+$$;
+
+create or replace function public.internal_upsert_company_directory(
+  p_company_directory_id bigint default null,
+  p_company_name text default null,
+  p_public_company_id bigint default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_company_directory_id bigint := p_company_directory_id;
+  v_company_name text := nullif(trim(coalesce(p_company_name, '')), '');
+  v_public_company_id bigint := p_public_company_id;
+  v_normalized_name text;
+  v_operation text := 'updated';
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  if v_company_name is null then
+    raise exception 'Company name is required';
+  end if;
+
+  v_normalized_name := onboarding.normalize_company_name(v_company_name);
+
+  if v_company_directory_id is null then
+    insert into onboarding.company_directory (
+      public_company_id,
+      company_name,
+      normalized_name,
+      created_via,
+      created_by_auth_uid,
+      metadata_json
+    )
+    values (
+      v_public_company_id,
+      v_company_name,
+      v_normalized_name,
+      'internal_editor',
+      auth.uid(),
+      jsonb_build_object('created_from', 'internal_upsert_company_directory')
+    )
+    returning id into v_company_directory_id;
+    v_operation := 'created';
+  else
+    update onboarding.company_directory d
+    set company_name = v_company_name,
+        normalized_name = v_normalized_name,
+        public_company_id = coalesce(v_public_company_id, d.public_company_id),
+        metadata_json = coalesce(d.metadata_json, '{}'::jsonb) || jsonb_build_object(
+          'last_internal_editor_at', now(),
+          'last_internal_editor_user', auth.uid()
+        ),
+        updated_at = now()
+    where d.id = v_company_directory_id;
+
+    if not found then
+      raise exception 'Company directory record not found';
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'operation', v_operation,
+    'company_directory_id', v_company_directory_id,
+    'company_name', v_company_name,
+    'public_company_id', v_public_company_id
   );
 end;
 $$;
@@ -4911,7 +5063,9 @@ grant execute on function public.list_my_platform_access() to authenticated, ser
 grant execute on function public.upsert_my_platform_access(text, boolean, text) to authenticated, service_role;
 grant execute on function public.upsert_my_task_state(text, boolean, text, text) to authenticated, service_role;
 grant execute on function public.get_internal_portal_context() to authenticated, service_role;
-grant execute on function public.internal_list_clients(text, onboarding.onboarding_stage, onboarding.onboarding_status, integer, integer) to authenticated, service_role;
+grant execute on function public.internal_list_clients(text, onboarding.onboarding_stage, onboarding.onboarding_status, integer, integer, bigint) to authenticated, service_role;
+grant execute on function public.internal_list_companies(text, integer, integer) to authenticated, service_role;
+grant execute on function public.internal_upsert_company_directory(bigint, text, bigint) to authenticated, service_role;
 grant execute on function public.internal_get_client_detail(bigint) to authenticated, service_role;
 grant execute on function public.internal_upsert_client_info(bigint, bigint, text, text, onboarding.onboarding_stage, onboarding.onboarding_status, date, text, text, text, text, text, text, text, text, text, text, text, text, text, text) to authenticated, service_role;
 grant execute on function public.internal_list_onboarding_overview(text, onboarding.onboarding_stage, integer) to authenticated, service_role;

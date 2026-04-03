@@ -306,6 +306,7 @@ export async function internalListClients({
   status = null,
   limit = 100,
   offset = 0,
+  companyDirectoryId = null,
 } = {}) {
   const { data, error } = await supabase.rpc("internal_list_clients", {
     p_search: search || null,
@@ -313,6 +314,7 @@ export async function internalListClients({
     p_status: status,
     p_limit: limit,
     p_offset: offset,
+    p_company_directory_id: companyDirectoryId,
   });
 
   if (error) {
@@ -320,6 +322,42 @@ export async function internalListClients({
   }
 
   return data || { items: [], total_count: 0, limit, offset };
+}
+
+export async function internalListCompanies({
+  search = "",
+  limit = 200,
+  offset = 0,
+} = {}) {
+  const { data, error } = await supabase.rpc("internal_list_companies", {
+    p_search: search || null,
+    p_limit: limit,
+    p_offset: offset,
+  });
+
+  if (error) {
+    throw new Error(`Internal company list failed: ${error.message}`);
+  }
+
+  return data || { items: [], total_count: 0, limit, offset };
+}
+
+export async function internalUpsertCompanyDirectory({
+  companyDirectoryId = null,
+  companyName = null,
+  publicCompanyId = null,
+} = {}) {
+  const { data, error } = await supabase.rpc("internal_upsert_company_directory", {
+    p_company_directory_id: companyDirectoryId,
+    p_company_name: companyName,
+    p_public_company_id: publicCompanyId,
+  });
+
+  if (error) {
+    throw new Error(`Internal company save failed: ${error.message}`);
+  }
+
+  return data;
 }
 
 export async function internalGetClientDetail(onboardingClientId) {

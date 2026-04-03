@@ -2,6 +2,7 @@ import {
   createInternalSignupInvite,
   getCurrentSession,
   internalGetSyncQueueSummary,
+  internalListCompanies,
   getInternalPortalContext,
   internalListOnboardingOverview,
   onAuthStateChange,
@@ -15,6 +16,7 @@ const state = {
   session: null,
   context: null,
   overviewRows: [],
+  companyRows: [],
   openingCommunityId: null,
   creatingInvite: false,
 };
@@ -170,6 +172,56 @@ function renderOverview(rows) {
   updateStats(rows);
 }
 
+function renderCompanies(rows) {
+  const body = document.getElementById("companyBody");
+  if (!body) return;
+
+  if (!rows.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="4" style="color:#767676;">No companies matched your filters.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  body.innerHTML = rows
+    .map((row) => {
+      const companyName = row.company_name || "Unnamed Company";
+      const encodedName = encodeURIComponent(companyName);
+      return `
+        <tr data-company-directory-id="${escapeHtml(row.company_directory_id)}">
+          <td>${escapeHtml(companyName)}</td>
+          <td>${escapeHtml(String(row.community_count ?? 0))}</td>
+          <td>${escapeHtml(
+            row.last_community_updated_at
+              ? new Date(row.last_community_updated_at).toLocaleString()
+              : "No communities yet"
+          )}</td>
+          <td>
+            <button
+              class="table-action-btn"
+              type="button"
+              data-manage-company-id="${escapeHtml(row.company_directory_id)}"
+              data-manage-company-name="${encodedName}"
+            >
+              Manage
+            </button>
+            <button
+              class="table-action-btn"
+              type="button"
+              data-create-for-company-id="${escapeHtml(row.company_directory_id)}"
+              data-create-for-company-name="${encodedName}"
+            >
+              New Community
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
 async function openCommunityDashboard(onboardingClientId, currentStage) {
   const numericId = Number(onboardingClientId);
   if (!numericId) return;
@@ -188,12 +240,29 @@ async function openCommunityDashboard(onboardingClientId, currentStage) {
   }
 }
 
-function openClientEditor(onboardingClientId = null) {
+function openClientEditor(onboardingClientId = null, company = null) {
   const numericId = Number(onboardingClientId);
-  const destination = Number.isFinite(numericId) && numericId > 0
-    ? `/internal-client-editor.html?clientId=${numericId}`
-    : "/internal-client-editor.html";
+  let destination = "/internal-client-editor.html";
+  if (Number.isFinite(numericId) && numericId > 0) {
+    destination = `/internal-client-editor.html?clientId=${numericId}`;
+  } else if (company?.companyDirectoryId) {
+    const params = new URLSearchParams({
+      companyDirectoryId: String(company.companyDirectoryId),
+      companyName: company.companyName || "",
+    });
+    destination = `/internal-client-editor.html?${params.toString()}`;
+  }
   window.location.href = destination;
+}
+
+function openCompanyManager(companyDirectoryId, companyName = "") {
+  const numericId = Number(companyDirectoryId);
+  if (!numericId) return;
+  const params = new URLSearchParams({
+    companyDirectoryId: String(numericId),
+    companyName,
+  });
+  window.location.href = `/internal-company.html?${params.toString()}`;
 }
 
 async function loadOverview() {
@@ -206,6 +275,18 @@ async function loadOverview() {
   });
   state.overviewRows = rows;
   renderOverview(rows);
+}
+
+async function loadCompanies() {
+  const search = document.getElementById("companySearchInput")?.value?.trim() || "";
+  const response = await internalListCompanies({
+    search,
+    limit: 300,
+    offset: 0,
+  });
+  const rows = Array.isArray(response?.items) ? response.items : [];
+  state.companyRows = rows;
+  renderCompanies(rows);
 }
 
 async function refreshSyncQueueSummary() {
@@ -306,7 +387,7 @@ async function hydrateInternal(session) {
   showLoggedInView();
   setSessionInfo(session, context);
   updateInviteAccess(context);
-  await Promise.all([loadOverview(), refreshSyncQueueSummary()]);
+  await Promise.all([loadOverview(), loadCompanies(), refreshSyncQueueSummary()]);
 }
 
 async function handleLoginSubmit(event) {
@@ -361,7 +442,15 @@ function bindHandlers() {
 
   document.getElementById("refreshBtn")?.addEventListener("click", async () => {
     try {
-      await Promise.all([loadOverview(), refreshSyncQueueSummary()]);
+      await Promise.all([loadOverview(), loadCompanies(), refreshSyncQueueSummary()]);
+    } catch (error) {
+      setAuthMessage(error.message, "error");
+    }
+  });
+
+  document.getElementById("companyRefreshBtn")?.addEventListener("click", async () => {
+    try {
+      await loadCompanies();
     } catch (error) {
       setAuthMessage(error.message, "error");
     }
@@ -421,6 +510,32 @@ function bindHandlers() {
     const row = event.target.closest("tr[data-onboarding-client-id]");
     if (!row) return;
     await openCommunityDashboard(row.dataset.onboardingClientId, row.dataset.currentStage);
+  });
+
+  document.getElementById("companySearchInput")?.addEventListener("input", async () => {
+    try {
+      await loadCompanies();
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  document.getElementById("companyBody")?.addEventListener("click", (event) => {
+    const manageButton = event.target.closest("[data-manage-company-id]");
+    if (manageButton) {
+      const encodedName = manageButton.dataset.manageCompanyName || "";
+      const companyName = encodedName ? decodeURIComponent(encodedName) : "";
+      openCompanyManager(manageButton.dataset.manageCompanyId, companyName);
+      return;
+    }
+
+    const createButton = event.target.closest("[data-create-for-company-id]");
+    if (createButton) {
+      const companyDirectoryId = Number(createButton.dataset.createForCompanyId);
+      const encodedName = createButton.dataset.createForCompanyName || "";
+      const companyName = encodedName ? decodeURIComponent(encodedName) : "";
+      openClientEditor(null, { companyDirectoryId, companyName });
+    }
   });
 
   document.getElementById("overviewBody")?.addEventListener("keydown", async (event) => {

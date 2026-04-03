@@ -50,6 +50,23 @@ function getClientIdFromUrl() {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function getPreselectedCompanyFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const rawDirectoryId = params.get("companyDirectoryId");
+  const parsedDirectoryId = Number(rawDirectoryId);
+  const companyDirectoryId =
+    Number.isFinite(parsedDirectoryId) && parsedDirectoryId > 0
+      ? parsedDirectoryId
+      : null;
+  const companyName = (params.get("companyName") || "").trim() || null;
+
+  if (!companyDirectoryId && !companyName) return null;
+  return {
+    company_directory_id: companyDirectoryId,
+    company_name: companyName,
+  };
+}
+
 function setSelectedCompany(company = null) {
   state.selectedCompany = company;
   const label = byId("selectedCompanyLabel");
@@ -341,6 +358,17 @@ async function initialize() {
   document.body.classList.remove("auth-gate-pending");
 
   const clientId = getClientIdFromUrl();
+  if (!clientId) {
+    const preselectedCompany = getPreselectedCompanyFromUrl();
+    if (preselectedCompany) {
+      setSelectedCompany(preselectedCompany);
+      if (preselectedCompany.company_name) {
+        setValue("companyNameOverride", preselectedCompany.company_name);
+      }
+      setStatus("Company preselected. Fill in community details and save.");
+    }
+  }
+
   if (!clientId) {
     updateHeaderMeta(null);
     return;
