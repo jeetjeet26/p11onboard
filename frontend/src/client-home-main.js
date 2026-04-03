@@ -1,8 +1,10 @@
 import {
   getCurrentSession,
+  getInternalPortalContext,
   getMyPortalContext,
   listMyCommunities,
   onAuthStateChange,
+  requestPasswordReset,
   setMyActiveCommunity,
   signInUser,
   signOutUser,
@@ -58,6 +60,7 @@ function toStageLabel(stageCode) {
 function showLoggedOutView() {
   document.getElementById("authCard")?.classList.remove("hide");
   document.getElementById("clientShell")?.classList.remove("show");
+  document.body.classList.remove("internal-user");
   setAuthMessage("");
 }
 
@@ -66,17 +69,16 @@ function showLoggedInView() {
   document.getElementById("clientShell")?.classList.add("show");
 }
 
-function setSessionInfo(session, context = null) {
-  const target = document.getElementById("sessionInfo");
-  if (!target) return;
-  if (!session) {
-    target.textContent = "";
-    return;
-  }
+function updateHeaderAuthControls(session) {
+  const logoutButton = document.getElementById("logoutBtn");
+  if (!logoutButton) return;
+  logoutButton.classList.toggle("show", Boolean(session));
+}
 
-  const fullName =
-    context?.full_name || session.user.user_metadata?.full_name || session.user.email || "Client User";
-  target.textContent = fullName;
+function applyRoleNavigation(context = null) {
+  const role = context?.portal_role || "";
+  const isInternalRole = role === "internal" || role === "admin";
+  document.body.classList.toggle("internal-user", isInternalRole);
 }
 
 function setCompanySummary(context, communities) {
@@ -132,7 +134,9 @@ function renderCommunities(communities) {
   if (!communities.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="empty-cell">None</td>
+        <td colspan="6" class="empty-cell">
+          No communities yet. Click <strong>Add Community</strong> to start onboarding.
+        </td>
       </tr>
     `;
     updateStats(communities);
@@ -141,7 +145,13 @@ function renderCommunities(communities) {
 
   body.innerHTML = communities
     .map(
-      (community) => `
+      (community) => {
+        const stageCode = String(community.current_stage || "");
+        const actionLabel =
+          stageCode === "go_live" || stageCode === "prelaunch_review"
+            ? "View Onboarding"
+            : "Continue Onboarding";
+        return `
       <tr
         data-onboarding-client-id="${escapeHtml(community.onboarding_client_id)}"
         data-current-stage="${escapeHtml(community.current_stage || "")}"
@@ -154,9 +164,10 @@ function renderCommunities(communities) {
         <td><span class="pill ${escapeHtml(community.status || "draft")}">${escapeHtml(community.status || "draft")}</span></td>
         <td>${escapeHtml(formatDate(community.target_go_live_at))}</td>
         <td>${escapeHtml(formatDateTime(community.last_submitted_at))}</td>
-        <td>${community.is_active ? '<span class="pill active">Active</span>' : "Open"}</td>
+        <td>${escapeHtml(actionLabel)}</td>
       </tr>
     `
+      }
     )
     .join("");
 
@@ -178,7 +189,7 @@ async function openCommunity(onboardingClientId, currentStage) {
     window.location.href = destination;
   } catch (error) {
     setTableLoadingState(null);
-    alert(`Unable to open community: ${error.message}`);
+    setAuthMessage(`Unable to open community: ${error.message}`, "error");
   }
 }
 
@@ -187,15 +198,28 @@ async function loadClientHomeData() {
   state.context = context || null;
   state.communities = Array.isArray(communities) ? communities : [];
 
-  setSessionInfo(state.session, state.context);
+  applyRoleNavigation(state.context);
   setCompanySummary(state.context, state.communities);
   renderCommunities(state.communities);
+}
+
+async function redirectInternalSessionHome() {
+  try {
+    const internalContext = await getInternalPortalContext();
+    if (internalContext) {
+      window.location.replace("/internal.html");
+      return true;
+    }
+  } catch (_error) {
+    // client sessions are expected to fail this internal check
+  }
+  return false;
 }
 
 async function hydrateClient(session) {
   state.session = session;
   showLoggedInView();
-  setSessionInfo(session, null);
+  updateHeaderAuthControls(session);
   await loadClientHomeData();
 }
 
@@ -216,16 +240,26 @@ async function handleLoginSubmit(event) {
   }
 }
 
+async function handleForgotPassword(event) {
+  event.preventDefault();
+  const email = document.getElementById("clientEmail")?.value?.trim();
+  if (!email) {
+    setAuthMessage("Enter your email above, then click forgot password.", "error");
+    return;
+  }
+  try {
+    await requestPasswordReset({
+      email,
+      redirectTo: `${window.location.origin}/client-home.html`,
+    });
+    setAuthMessage("Password reset email sent.", "success");
+  } catch (error) {
+    setAuthMessage(error.message, "error");
+  }
+}
+
 function bindHandlers() {
   document.getElementById("clientLoginForm")?.addEventListener("submit", handleLoginSubmit);
-
-  document.getElementById("refreshBtn")?.addEventListener("click", async () => {
-    try {
-      await loadClientHomeData();
-    } catch (error) {
-      alert(error.message);
-    }
-  });
 
   document.getElementById("addCommunityBtn")?.addEventListener("click", () => {
     // New communities are created when a submitted client starts intake with a different community name.
@@ -236,9 +270,11 @@ function bindHandlers() {
     try {
       await signOutUser();
     } catch (error) {
-      alert(error.message);
+      setAuthMessage(error.message, "error");
     }
   });
+
+  document.getElementById("clientForgotPassword")?.addEventListener("click", handleForgotPassword);
 
   document.getElementById("communityBody")?.addEventListener("click", async (event) => {
     const row = event.target.closest("tr[data-onboarding-client-id]");
@@ -259,12 +295,14 @@ async function initialize() {
   bindHandlers();
   const session = await getCurrentSession();
   state.session = session;
+  updateHeaderAuthControls(session);
 
   if (session) {
     try {
+      if (await redirectInternalSessionHome()) return;
       await hydrateClient(session);
     } catch (error) {
-      alert(`Unable to load client home: ${error.message}`);
+      setAuthMessage(`Unable to load client home: ${error.message}`, "error");
       showLoggedOutView();
     }
   } else {
@@ -273,16 +311,17 @@ async function initialize() {
 
   onAuthStateChange(async (_event, nextSession) => {
     state.session = nextSession;
+    updateHeaderAuthControls(nextSession);
     if (!nextSession) {
       showLoggedOutView();
-      setSessionInfo(null, null);
       return;
     }
 
     try {
+      if (await redirectInternalSessionHome()) return;
       await hydrateClient(nextSession);
     } catch (error) {
-      alert(`Unable to load client home: ${error.message}`);
+      setAuthMessage(`Unable to load client home: ${error.message}`, "error");
       showLoggedOutView();
     }
   });

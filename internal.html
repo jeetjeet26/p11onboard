@@ -27,6 +27,9 @@
         background: var(--bg);
         color: var(--charcoal);
       }
+      body.auth-pending {
+        opacity: 0;
+      }
 
       .header {
         background: var(--charcoal);
@@ -176,6 +179,16 @@
         color: var(--green);
       }
 
+      .auth-link {
+        margin-top: 8px;
+        font-size: 12px;
+      }
+
+      .auth-link a {
+        color: var(--charcoal);
+        text-decoration: underline;
+      }
+
       .shell {
         display: none;
       }
@@ -208,6 +221,16 @@
         flex: 1;
         min-width: 220px;
       }
+
+      .sync-status {
+        margin: 8px 2px 0;
+        color: var(--gray);
+        font-size: 12px;
+        min-height: 16px;
+      }
+
+      .sync-status.success { color: var(--green); }
+      .sync-status.error { color: #cc2e17; }
 
       .stats {
         margin-top: 14px;
@@ -411,7 +434,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="auth-pending">
     <header class="header">
       <div class="brand">
         <div class="mark">P11</div>
@@ -421,10 +444,7 @@
         </div>
       </div>
       <nav class="nav" aria-label="App Navigation">
-        <a href="/">Home</a>
-        <a href="/p11-onboarding-dashboard.html">Dashboard</a>
-        <a href="/p11-onboarding-account-access.html">Account Access</a>
-        <a class="active" href="/internal.html">Internal Portal</a>
+        <a class="active" href="/internal.html">Home</a>
         <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
         <a href="/p11-onboarding-project-brief.html">Project Brief</a>
       </nav>
@@ -445,6 +465,9 @@
           </div>
           <button class="submit-btn" id="internalLoginSubmit" type="submit">Log In</button>
           <div class="auth-message" id="internalAuthMessage"></div>
+          <div class="auth-link">
+            <a href="#" id="internalForgotPassword">Forgot your password?</a>
+          </div>
         </form>
       </section>
 
@@ -468,6 +491,7 @@
         <p style="margin:8px 2px 0; color:var(--gray); font-size:12px;">
           Click any community row to open the appropriate onboarding step view.
         </p>
+        <div class="sync-status" id="syncQueueStatus"></div>
 
         <section class="invite-card" id="inviteCard">
           <h2 class="invite-title">Invite Internal Member</h2>
@@ -485,8 +509,8 @@
                 <input id="inviteFullName" type="text" />
               </div>
               <div class="invite-field">
-                <label>Invite Expiry</label>
-                <input type="text" value="Never" readonly />
+                <label for="inviteExpiresHours">Invite Expiry (hours, optional)</label>
+                <input id="inviteExpiresHours" type="number" min="1" placeholder="e.g. 168" />
               </div>
             </div>
             <div class="invite-actions">
@@ -523,6 +547,8 @@
                 <th>Stage</th>
                 <th>Status</th>
                 <th>Go Live</th>
+                <th>Required Access Outstanding</th>
+                <th>Queued Sync Jobs</th>
                 <th>Last Submission</th>
               </tr>
             </thead>

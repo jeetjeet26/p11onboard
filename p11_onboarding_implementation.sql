@@ -111,6 +111,7 @@ end $$;
 create or replace function onboarding.tg_set_updated_at()
 returns trigger
 language plpgsql
+set search_path = onboarding, public
 as $$
 begin
   new.updated_at = now();
@@ -122,6 +123,7 @@ create or replace function onboarding.is_internal_user()
 returns boolean
 language plpgsql
 stable
+set search_path = onboarding, public
 as $$
 declare
   v_has_access boolean := false;
@@ -156,6 +158,7 @@ create or replace function onboarding.is_admin_user()
 returns boolean
 language plpgsql
 stable
+set search_path = onboarding, public
 as $$
 declare
   v_has_access boolean := false;
@@ -191,6 +194,7 @@ create or replace function onboarding.has_client_access(p_onboarding_client_id b
 returns boolean
 language plpgsql
 stable
+set search_path = onboarding, public
 as $$
 declare
   v_has_access boolean := false;
@@ -431,6 +435,11 @@ create table if not exists onboarding.onboarding_brand (
   updated_at timestamptz not null default now()
 );
 
+alter table onboarding.onboarding_brand
+  add column if not exists key_messages text,
+  add column if not exists do_not_use_phrases text,
+  add column if not exists active_offers text;
+
 create table if not exists onboarding.onboarding_brand_asset (
   id bigint generated always as identity primary key,
   onboarding_client_id bigint not null references onboarding.onboarding_client(id) on delete cascade,
@@ -611,16 +620,39 @@ create index if not exists idx_onboarding_client_status on onboarding.onboarding
 create index if not exists idx_onboarding_client_stage on onboarding.onboarding_client(current_stage);
 create index if not exists idx_onboarding_submission_client_id on onboarding.onboarding_submission(onboarding_client_id);
 create index if not exists idx_onboarding_submission_status on onboarding.onboarding_submission(submission_status);
+create index if not exists idx_onboarding_submission_key
+on onboarding.onboarding_submission (onboarding_client_id, ((raw_payload_json ->> 'submission_key')))
+where raw_payload_json ? 'submission_key';
 create index if not exists idx_onboarding_contact_client_id on onboarding.onboarding_contact(onboarding_client_id);
 create index if not exists idx_onboarding_service_client_id on onboarding.onboarding_service(onboarding_client_id);
 create index if not exists idx_onboarding_platform_access_client_id on onboarding.onboarding_platform_access(onboarding_client_id);
 create index if not exists idx_onboarding_platform_access_verified on onboarding.onboarding_platform_access(verified_status);
+create index if not exists idx_onboarding_approval_client_id on onboarding.onboarding_approval(onboarding_client_id);
+create index if not exists idx_onboarding_assignment_client_id on onboarding.onboarding_assignment(onboarding_client_id);
+create index if not exists idx_onboarding_link_client_id on onboarding.onboarding_link(onboarding_client_id);
+create index if not exists idx_onboarding_brand_asset_client_id on onboarding.onboarding_brand_asset(onboarding_client_id);
 create index if not exists idx_portal_user_company_access_user on onboarding.portal_user_company_access(auth_user_id);
 create index if not exists idx_onboarding_sync_job_status on onboarding.onboarding_sync_job(status);
 
 -- -----------------------------------------------------------------------------
 -- Triggers
 -- -----------------------------------------------------------------------------
+create or replace function onboarding.tg_sync_onboarding_brand_compat_fields()
+returns trigger
+language plpgsql
+set search_path = onboarding, public
+as $$
+begin
+  new.approved_messages := coalesce(new.approved_messages, new.key_messages);
+  new.disallowed_messaging := coalesce(new.disallowed_messaging, new.do_not_use_phrases);
+  new.promotions := coalesce(new.promotions, new.active_offers);
+  new.key_messages := coalesce(new.key_messages, new.approved_messages);
+  new.do_not_use_phrases := coalesce(new.do_not_use_phrases, new.disallowed_messaging);
+  new.active_offers := coalesce(new.active_offers, new.promotions);
+  return new;
+end;
+$$;
+
 drop trigger if exists trg_property_type_crosswalk_updated_at on onboarding.property_type_crosswalk;
 create trigger trg_property_type_crosswalk_updated_at
 before update on onboarding.property_type_crosswalk
@@ -670,6 +702,11 @@ drop trigger if exists trg_onboarding_brand_updated_at on onboarding.onboarding_
 create trigger trg_onboarding_brand_updated_at
 before update on onboarding.onboarding_brand
 for each row execute function onboarding.tg_set_updated_at();
+
+drop trigger if exists trg_onboarding_brand_compat_sync on onboarding.onboarding_brand;
+create trigger trg_onboarding_brand_compat_sync
+before insert or update on onboarding.onboarding_brand
+for each row execute function onboarding.tg_sync_onboarding_brand_compat_fields();
 
 drop trigger if exists trg_onboarding_brand_asset_updated_at on onboarding.onboarding_brand_asset;
 create trigger trg_onboarding_brand_asset_updated_at
@@ -763,6 +800,7 @@ create or replace function onboarding.normalize_property_type(p_source_value tex
 returns text
 language sql
 stable
+set search_path = onboarding, public
 as $$
   select coalesce(
     (
@@ -780,6 +818,7 @@ create or replace function onboarding.map_property_type_to_company_profile_value
 returns text
 language sql
 stable
+set search_path = onboarding, public
 as $$
   select coalesce(
     (
@@ -797,6 +836,7 @@ create or replace function onboarding.map_service_code_to_legacy(p_service_code 
 returns text
 language sql
 stable
+set search_path = onboarding, public
 as $$
   select coalesce(
     (
@@ -845,6 +885,52 @@ begin
 end;
 $$;
 
+create or replace function onboarding.auto_process_canonical_sync(
+  p_onboarding_client_id bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = onboarding, public
+as $$
+begin
+  if p_onboarding_client_id is null then
+    return jsonb_build_object('status', 'noop', 'reason', 'missing_onboarding_client_id');
+  end if;
+
+  if not exists (
+    select 1
+    from onboarding.onboarding_sync_job j
+    where j.onboarding_client_id = p_onboarding_client_id
+      and j.status = 'queued'
+      and j.job_type = 'canonical_sync'
+  ) then
+    return jsonb_build_object('status', 'noop', 'reason', 'no_queued_jobs');
+  end if;
+
+  begin
+    return onboarding.sync_canonical_fields(p_onboarding_client_id);
+  exception
+    when others then
+      update onboarding.onboarding_sync_job j
+      set status = 'failed',
+          attempt_count = j.attempt_count + 1,
+          last_error = SQLERRM,
+          processed_at = now(),
+          updated_at = now()
+      where j.onboarding_client_id = p_onboarding_client_id
+        and j.status = 'queued'
+        and j.job_type = 'canonical_sync';
+
+      return jsonb_build_object(
+        'status', 'failed',
+        'onboarding_client_id', p_onboarding_client_id,
+        'error', SQLERRM
+      );
+  end;
+end;
+$$;
+
 create or replace function onboarding.ingest_submission(
   p_onboarding_client_id bigint,
   p_raw_payload_json jsonb,
@@ -857,6 +943,7 @@ security definer
 set search_path = onboarding, public
 as $$
 declare
+  v_auth_user_id uuid := auth.uid();
   v_submission_id bigint;
   v_company_name text;
   v_property_type_raw text;
@@ -869,12 +956,48 @@ declare
   v_preferred_communication text;
   v_final_notes text;
   v_payload jsonb;
+  v_all_fields jsonb;
+  v_reporting_contact_name text;
+  v_reporting_contact_email text;
+  v_additional_report_recipients text;
+  v_website_manager_type text;
+  v_website_cms text;
+  v_website_direct_edit_permission text;
+  v_website_conversion_actions text;
+  v_website_technical_notes text;
+  v_strategy_competitors text;
+  v_strategy_primary_goals text;
+  v_brand_voice_tone text;
+  v_selected_services jsonb;
+  v_service_configs jsonb;
+  v_platform_access jsonb;
+  v_uploaded_assets jsonb;
+  v_brand_asset_share_link text;
+  v_service_code text;
+  v_service_id bigint;
+  v_service_config jsonb;
 begin
   if p_onboarding_client_id is null then
     raise exception 'p_onboarding_client_id is required';
   end if;
 
+  if not coalesce((auth.jwt() ->> 'role') = 'service_role', false) then
+    if v_auth_user_id is null then
+      raise exception 'Authentication required' using errcode = '28000';
+    end if;
+    if not onboarding.has_client_access(p_onboarding_client_id) and not onboarding.is_internal_user()
+    then
+      raise exception 'Access denied for onboarding client %', p_onboarding_client_id
+        using errcode = '42501';
+    end if;
+  end if;
+
   v_payload := coalesce(p_raw_payload_json, '{}'::jsonb);
+  v_all_fields := coalesce(v_payload -> 'all_fields', '{}'::jsonb);
+  v_selected_services := coalesce(v_payload -> 'selected_services', '[]'::jsonb);
+  v_service_configs := coalesce(v_payload -> 'service_configs', '{}'::jsonb);
+  v_platform_access := coalesce(v_payload -> 'platform_access', '[]'::jsonb);
+  v_uploaded_assets := coalesce(v_payload -> 'uploaded_assets', '[]'::jsonb);
 
   v_company_name := coalesce(
     v_payload ->> 'community_name',
@@ -924,6 +1047,46 @@ begin
     v_payload ->> 'anythingElseWeShouldKnow'
   );
 
+  v_reporting_contact_name := coalesce(
+    nullif(v_payload ->> 'reporting_contact_name', ''),
+    nullif(v_all_fields ->> 'primary_reporting_contact_name', '')
+  );
+  v_reporting_contact_email := coalesce(
+    nullif(v_payload ->> 'reporting_contact_email', ''),
+    nullif(v_all_fields ->> 'reporting_contact_email', '')
+  );
+  v_additional_report_recipients := coalesce(
+    nullif(v_payload ->> 'additional_report_recipients', ''),
+    nullif(v_all_fields ->> 'additional_report_recipients', '')
+  );
+  v_website_manager_type := nullif(
+    coalesce(v_all_fields ->> 'who_manages_the_website', ''),
+    ''
+  );
+  v_website_cms := nullif(coalesce(v_all_fields ->> 'website_cms_platform', ''), '');
+  v_website_direct_edit_permission := nullif(
+    coalesce(v_all_fields ->> 'can_p11creative_make_direct_edits', ''),
+    ''
+  );
+  v_website_conversion_actions := nullif(
+    v_all_fields ->> 'what_site_actions_should_be_tracked_as_conversions',
+    ''
+  );
+  v_website_technical_notes := nullif(
+    coalesce(v_all_fields ->> 'technical_notes_special_vendors_or_site_restrictions', ''),
+    ''
+  );
+  v_strategy_competitors := nullif(coalesce(v_all_fields ->> 'list_your_top_35_competitors', ''), '');
+  v_strategy_primary_goals := coalesce(
+    nullif(v_all_fields ->> 'primary_marketing_goals', ''),
+    nullif(v_all_fields ->> 'what_sets_your_community_apart', '')
+  );
+  v_brand_voice_tone := nullif(coalesce(v_all_fields ->> 'brand_voice_and_tone', ''), '');
+  v_brand_asset_share_link := coalesce(
+    nullif(v_payload ->> 'brand_asset_share_link', ''),
+    nullif(v_all_fields ->> 'or_paste_a_dropbox_google_drive_shareable_link', '')
+  );
+
   begin
     v_go_live_date := coalesce(
       nullif(v_payload ->> 'target_campaign_go_live_date', '')::date,
@@ -955,6 +1118,282 @@ begin
       end
   where c.id = p_onboarding_client_id;
 
+  delete from onboarding.onboarding_contact
+  where onboarding_client_id = p_onboarding_client_id
+    and role_code in ('reporting_primary', 'report_recipient');
+
+  if coalesce(v_reporting_contact_name, '') <> '' or coalesce(v_reporting_contact_email, '') <> '' then
+    insert into onboarding.onboarding_contact (
+      onboarding_client_id,
+      full_name,
+      email,
+      role_code,
+      source
+    )
+    values (
+      p_onboarding_client_id,
+      nullif(v_reporting_contact_name, ''),
+      nullif(v_reporting_contact_email, ''),
+      'reporting_primary',
+      'client'
+    );
+  end if;
+
+  if coalesce(v_additional_report_recipients, '') <> '' then
+    insert into onboarding.onboarding_contact (
+      onboarding_client_id,
+      full_name,
+      email,
+      role_code,
+      source
+    )
+    select
+      p_onboarding_client_id,
+      case
+        when token ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then null
+        else token
+      end,
+      case
+        when token ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then token
+        else null
+      end,
+      'report_recipient',
+      'client'
+    from (
+      select trim(value) as token
+      from regexp_split_to_table(v_additional_report_recipients, E'\\s*,\\s*') as value
+    ) recipients
+    where token <> '';
+  end if;
+
+  insert into onboarding.onboarding_website (
+    onboarding_client_id,
+    manager_type,
+    cms_platform,
+    direct_edit_permission,
+    conversion_actions,
+    technical_notes
+  )
+  values (
+    p_onboarding_client_id,
+    v_website_manager_type,
+    v_website_cms,
+    v_website_direct_edit_permission,
+    v_website_conversion_actions,
+    v_website_technical_notes
+  )
+  on conflict (onboarding_client_id) do update set
+    manager_type = excluded.manager_type,
+    cms_platform = excluded.cms_platform,
+    direct_edit_permission = excluded.direct_edit_permission,
+    conversion_actions = excluded.conversion_actions,
+    technical_notes = excluded.technical_notes,
+    updated_at = now();
+
+  insert into onboarding.onboarding_strategy (
+    onboarding_client_id,
+    competitors,
+    primary_goals
+  )
+  values (
+    p_onboarding_client_id,
+    v_strategy_competitors,
+    v_strategy_primary_goals
+  )
+  on conflict (onboarding_client_id) do update set
+    competitors = excluded.competitors,
+    primary_goals = excluded.primary_goals,
+    updated_at = now();
+
+  insert into onboarding.onboarding_brand (
+    onboarding_client_id,
+    voice_tone,
+    approved_messages,
+    disallowed_messaging,
+    promotions,
+    asset_milestones
+  )
+  values (
+    p_onboarding_client_id,
+    v_brand_voice_tone,
+    nullif(coalesce(v_all_fields ->> 'approved_taglines_key_messages_or_phrases_for_ads', ''), ''),
+    nullif(coalesce(v_all_fields ->> 'messaging_or_language_to_avoid', ''), ''),
+    nullif(coalesce(v_all_fields ->> 'current_or_upcoming_special_offers_promotions', ''), ''),
+    nullif(coalesce(v_all_fields ->> 'upcoming_content_or_asset_milestones', ''), '')
+  )
+  on conflict (onboarding_client_id) do update set
+    voice_tone = excluded.voice_tone,
+    approved_messages = excluded.approved_messages,
+    disallowed_messaging = excluded.disallowed_messaging,
+    promotions = excluded.promotions,
+    asset_milestones = excluded.asset_milestones,
+    updated_at = now();
+
+  delete from onboarding.onboarding_service_config
+  where onboarding_service_id in (
+    select id
+    from onboarding.onboarding_service
+    where onboarding_client_id = p_onboarding_client_id
+  );
+
+  delete from onboarding.onboarding_service
+  where onboarding_client_id = p_onboarding_client_id;
+
+  for v_service_code in
+    select jsonb_array_elements_text(v_selected_services)
+  loop
+    insert into onboarding.onboarding_service (
+      onboarding_client_id,
+      service_code,
+      legacy_service_type,
+      is_selected
+    )
+    values (
+      p_onboarding_client_id,
+      v_service_code,
+      onboarding.map_service_code_to_legacy(v_service_code),
+      true
+    )
+    returning id into v_service_id;
+
+    v_service_config := coalesce(v_service_configs -> v_service_code, '{}'::jsonb);
+
+    insert into onboarding.onboarding_service_config (
+      onboarding_service_id,
+      monthly_budget,
+      account_exists,
+      keyword_themes,
+      target_audience,
+      primary_goals,
+      remarketing_focus,
+      email_platform,
+      list_size,
+      email_goals,
+      video_assets_status,
+      ils_platforms,
+      report_frequency,
+      report_delivery_preference,
+      key_metrics,
+      config_json
+    )
+    values (
+      v_service_id,
+      case
+        when nullif(regexp_replace(coalesce(v_service_config ->> 'monthly_budget', ''), '[^0-9.]', '', 'g'), '') ~ '^[0-9]+(\.[0-9]+)?$'
+          then nullif(regexp_replace(coalesce(v_service_config ->> 'monthly_budget', ''), '[^0-9.]', '', 'g'), '')::numeric
+        else null
+      end,
+      case lower(coalesce(v_service_config ->> 'account_exists', ''))
+        when 'true' then true
+        when 'yes' then true
+        when '1' then true
+        when 'false' then false
+        when 'no' then false
+        when '0' then false
+        else null
+      end,
+      nullif(v_service_config ->> 'keyword_themes', ''),
+      nullif(v_service_config ->> 'target_audience', ''),
+      nullif(v_service_config ->> 'primary_goals', ''),
+      nullif(v_service_config ->> 'remarketing_focus', ''),
+      nullif(v_service_config ->> 'email_platform', ''),
+      case
+        when nullif(regexp_replace(coalesce(v_service_config ->> 'list_size', ''), '[^0-9]', '', 'g'), '') is not null
+          then nullif(regexp_replace(coalesce(v_service_config ->> 'list_size', ''), '[^0-9]', '', 'g'), '')::integer
+        else null
+      end,
+      nullif(v_service_config ->> 'email_goals', ''),
+      nullif(v_service_config ->> 'video_assets_status', ''),
+      (
+        select coalesce(array_agg(value), '{}'::text[])
+        from jsonb_array_elements_text(coalesce(v_service_config -> 'ils_platforms', '[]'::jsonb)) as value
+      ),
+      nullif(v_service_config ->> 'report_frequency', ''),
+      nullif(v_service_config ->> 'report_delivery_preference', ''),
+      nullif(v_service_config ->> 'key_metrics', ''),
+      v_service_config
+    );
+  end loop;
+
+  insert into onboarding.onboarding_platform_access (
+    onboarding_client_id,
+    platform_code,
+    platform_label,
+    is_required,
+    requested_status
+  )
+  select
+    p_onboarding_client_id,
+    p.platform_code,
+    p.display_name,
+    p.is_required_default,
+    case
+      when exists (
+        select 1
+        from jsonb_array_elements(v_platform_access) elem
+        where lower(coalesce(elem ->> 'platform_code', '')) = lower(p.platform_code)
+          and coalesce((elem ->> 'requested')::boolean, false) = true
+      ) then 'requested'::onboarding.platform_status
+      else 'not_requested'::onboarding.platform_status
+    end
+  from onboarding.platform_code_lookup p
+  on conflict (onboarding_client_id, platform_code) do update set
+    platform_label = excluded.platform_label,
+    is_required = excluded.is_required,
+    requested_status = excluded.requested_status,
+    updated_at = now();
+
+  delete from onboarding.onboarding_brand_asset
+  where onboarding_client_id = p_onboarding_client_id
+    and coalesce(metadata_json ->> 'source', '') in ('portal_upload', 'portal_share_link');
+
+  insert into onboarding.onboarding_brand_asset (
+    onboarding_client_id,
+    asset_type,
+    file_name,
+    mime_type,
+    file_size_bytes,
+    storage_path,
+    external_url,
+    uploaded_by,
+    metadata_json
+  )
+  select
+    p_onboarding_client_id,
+    'uploaded_asset',
+    nullif(asset ->> 'file_name', ''),
+    nullif(asset ->> 'mime_type', ''),
+    case
+      when (asset ->> 'file_size_bytes') ~ '^[0-9]+$' then (asset ->> 'file_size_bytes')::bigint
+      else null
+    end,
+    nullif(asset ->> 'storage_path', ''),
+    nullif(asset ->> 'external_url', ''),
+    auth.uid(),
+    jsonb_build_object('source', 'portal_upload')
+  from jsonb_array_elements(v_uploaded_assets) as asset
+  where coalesce(asset ->> 'storage_path', '') <> ''
+     or coalesce(asset ->> 'external_url', '') <> '';
+
+  if coalesce(v_brand_asset_share_link, '') <> '' then
+    insert into onboarding.onboarding_brand_asset (
+      onboarding_client_id,
+      asset_type,
+      file_name,
+      external_url,
+      uploaded_by,
+      metadata_json
+    )
+    values (
+      p_onboarding_client_id,
+      'share_link',
+      'Shared Brand Asset Link',
+      v_brand_asset_share_link,
+      auth.uid(),
+      jsonb_build_object('source', 'portal_share_link')
+    );
+  end if;
+
   insert into onboarding.onboarding_submission (
     onboarding_client_id,
     source_tool,
@@ -979,7 +1418,10 @@ begin
       'parent_company', v_parent_company,
       'target_go_live_at', v_go_live_date,
       'preferred_communication_method', v_preferred_communication,
-      'final_notes', v_final_notes
+      'final_notes', v_final_notes,
+      'selected_services_count', jsonb_array_length(v_selected_services),
+      'platform_access_count', jsonb_array_length(v_platform_access),
+      'uploaded_assets_count', jsonb_array_length(v_uploaded_assets)
     ),
     case when p_submission_status in ('submitted', 'resubmitted') then now() else null end,
     auth.uid()
@@ -992,6 +1434,7 @@ begin
     'canonical_sync',
     jsonb_build_object('trigger', 'ingest_submission')
   );
+  perform onboarding.auto_process_canonical_sync(p_onboarding_client_id);
 
   return v_submission_id;
 end;
@@ -1571,6 +2014,172 @@ for all
 using (onboarding.is_internal_user())
 with check (onboarding.is_internal_user());
 
+do $$
+begin
+  if to_regclass('storage.buckets') is null then
+    return;
+  end if;
+
+  insert into storage.buckets (id, name, public, file_size_limit)
+  values ('onboarding-brand-assets', 'onboarding-brand-assets', false, 524288000)
+  on conflict (id) do update
+  set file_size_limit = excluded.file_size_limit;
+end;
+$$;
+
+do $$
+begin
+  if to_regclass('storage.objects') is null then
+    return;
+  end if;
+
+  execute 'drop policy if exists onboarding_brand_assets_select on storage.objects';
+  execute 'drop policy if exists onboarding_brand_assets_insert on storage.objects';
+  execute 'drop policy if exists onboarding_brand_assets_update on storage.objects';
+  execute 'drop policy if exists onboarding_brand_assets_delete on storage.objects';
+
+  execute $policy$
+    create policy onboarding_brand_assets_select
+    on storage.objects
+    for select
+    using (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+    )
+  $policy$;
+
+  execute $policy$
+    create policy onboarding_brand_assets_insert
+    on storage.objects
+    for insert
+    with check (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+    )
+  $policy$;
+
+  execute $policy$
+    create policy onboarding_brand_assets_update
+    on storage.objects
+    for update
+    using (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+    )
+    with check (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+    )
+  $policy$;
+
+  execute $policy$
+    create policy onboarding_brand_assets_delete
+    on storage.objects
+    for delete
+    using (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+    )
+  $policy$;
+end;
+$$;
+
+create or replace function onboarding.can_access_brand_asset_path(p_object_name text)
+returns boolean
+language plpgsql
+stable
+set search_path = onboarding, public
+as $$
+declare
+  v_folder text;
+  v_client_id bigint;
+begin
+  if auth.uid() is null then
+    return false;
+  end if;
+
+  if onboarding.is_internal_user() then
+    return true;
+  end if;
+
+  v_folder := (storage.foldername(p_object_name))[1];
+  if v_folder is null or v_folder !~ '^client-[0-9]+$' then
+    return false;
+  end if;
+
+  v_client_id := substring(v_folder from '^client-([0-9]+)$')::bigint;
+  return exists (
+    select 1
+    from onboarding.portal_user_company_access m
+    where m.auth_user_id = auth.uid()
+      and m.onboarding_client_id = v_client_id
+      and m.is_active = true
+  );
+end;
+$$;
+
+do $$
+begin
+  if to_regclass('storage.objects') is null then
+    return;
+  end if;
+
+  execute 'drop policy if exists onboarding_brand_assets_select on storage.objects';
+  execute 'drop policy if exists onboarding_brand_assets_insert on storage.objects';
+  execute 'drop policy if exists onboarding_brand_assets_update on storage.objects';
+  execute 'drop policy if exists onboarding_brand_assets_delete on storage.objects';
+
+  execute $policy$
+    create policy onboarding_brand_assets_select
+    on storage.objects
+    for select
+    using (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+      and onboarding.can_access_brand_asset_path(name)
+    )
+  $policy$;
+
+  execute $policy$
+    create policy onboarding_brand_assets_insert
+    on storage.objects
+    for insert
+    with check (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+      and onboarding.can_access_brand_asset_path(name)
+    )
+  $policy$;
+
+  execute $policy$
+    create policy onboarding_brand_assets_update
+    on storage.objects
+    for update
+    using (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+      and onboarding.can_access_brand_asset_path(name)
+    )
+    with check (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+      and onboarding.can_access_brand_asset_path(name)
+    )
+  $policy$;
+
+  execute $policy$
+    create policy onboarding_brand_assets_delete
+    on storage.objects
+    for delete
+    using (
+      bucket_id = 'onboarding-brand-assets'
+      and auth.role() = 'authenticated'
+      and onboarding.can_access_brand_asset_path(name)
+    )
+  $policy$;
+end;
+$$;
+
 -- -----------------------------------------------------------------------------
 -- Grants
 -- -----------------------------------------------------------------------------
@@ -1581,12 +2190,18 @@ grant usage, select on all sequences in schema onboarding to authenticated, serv
 
 grant execute on function onboarding.is_internal_user() to authenticated, service_role;
 grant execute on function onboarding.has_client_access(bigint) to authenticated, service_role;
+grant execute on function onboarding.can_access_brand_asset_path(text) to authenticated, service_role;
 grant execute on function onboarding.normalize_property_type(text) to authenticated, service_role;
 grant execute on function onboarding.map_property_type_to_company_profile_value(text) to authenticated, service_role;
 grant execute on function onboarding.map_service_code_to_legacy(text) to authenticated, service_role;
-grant execute on function onboarding.ingest_submission(bigint, jsonb, text, onboarding.submission_status) to authenticated, service_role;
-grant execute on function onboarding.enqueue_sync_job(bigint, bigint, text, jsonb) to authenticated, service_role;
-grant execute on function onboarding.sync_canonical_fields(bigint) to authenticated, service_role;
+grant execute on function onboarding.ingest_submission(bigint, jsonb, text, onboarding.submission_status) to service_role;
+grant execute on function onboarding.enqueue_sync_job(bigint, bigint, text, jsonb) to service_role;
+grant execute on function onboarding.auto_process_canonical_sync(bigint) to service_role;
+grant execute on function onboarding.sync_canonical_fields(bigint) to service_role;
+revoke execute on function onboarding.ingest_submission(bigint, jsonb, text, onboarding.submission_status) from public, anon, authenticated;
+revoke execute on function onboarding.enqueue_sync_job(bigint, bigint, text, jsonb) from public, anon, authenticated;
+revoke execute on function onboarding.auto_process_canonical_sync(bigint) from public, anon, authenticated;
+revoke execute on function onboarding.sync_canonical_fields(bigint) from public, anon, authenticated;
 
 grant select on onboarding.onboarding_company_360_v to authenticated, service_role;
 grant select on onboarding.onboarding_services_v to authenticated, service_role;
@@ -2043,10 +2658,121 @@ where c."Name" is not null
   and length(trim(c."Name")) > 0
 on conflict do nothing;
 
+create or replace view onboarding.v_portal_user_membership as
+select
+  m.id as access_id,
+  m.auth_user_id,
+  m.portal_role,
+  m.is_active,
+  m.updated_at as access_updated_at,
+  m.onboarding_client_id,
+  m.company_id as access_company_id,
+  c.company_id as client_company_id,
+  c.company_directory_id,
+  pc."Name" as legacy_company_name,
+  cd.company_name as directory_company_name,
+  coalesce(cd.company_name, pc."Name") as canonical_company_name,
+  (m.company_id is not distinct from c.company_id) as company_ids_match,
+  (
+    c.company_directory_id is null
+    or cd.public_company_id is null
+    or cd.public_company_id is not distinct from c.company_id
+  ) as directory_mapping_match
+from onboarding.portal_user_company_access m
+join onboarding.onboarding_client c on c.id = m.onboarding_client_id
+left join public."Company" pc on pc."ID" = c.company_id
+left join onboarding.company_directory cd on cd.id = c.company_directory_id;
+
+create or replace function onboarding.tg_enforce_portal_access_company_match()
+returns trigger
+language plpgsql
+set search_path = onboarding, public
+as $$
+declare
+  v_client_exists_id bigint;
+  v_client_company_id bigint;
+begin
+  select c.id, c.company_id
+  into v_client_exists_id, v_client_company_id
+  from onboarding.onboarding_client c
+  where c.id = new.onboarding_client_id;
+
+  if v_client_exists_id is null then
+    raise exception 'Portal access row references unknown onboarding_client_id %', new.onboarding_client_id;
+  end if;
+
+  if new.company_id is distinct from v_client_company_id then
+    raise exception
+      'portal_user_company_access.company_id (%) must match onboarding_client.company_id (%) for onboarding_client_id %',
+      new.company_id,
+      v_client_company_id,
+      new.onboarding_client_id
+      using errcode = '23514';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_portal_access_company_match on onboarding.portal_user_company_access;
+create trigger trg_portal_access_company_match
+before insert or update of onboarding_client_id, company_id
+on onboarding.portal_user_company_access
+for each row
+execute function onboarding.tg_enforce_portal_access_company_match();
+
+create or replace function public.internal_assert_portal_company_consistency()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_mismatch_count integer := 0;
+  v_sample jsonb := '[]'::jsonb;
+begin
+  select count(*)
+  into v_mismatch_count
+  from onboarding.v_portal_user_membership v
+  where not v.company_ids_match
+     or not v.directory_mapping_match;
+
+  if v_mismatch_count > 0 then
+    select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb)
+    into v_sample
+    from (
+      select
+        v.access_id,
+        v.auth_user_id,
+        v.onboarding_client_id,
+        v.access_company_id,
+        v.client_company_id,
+        v.company_directory_id,
+        v.legacy_company_name,
+        v.directory_company_name
+      from onboarding.v_portal_user_membership v
+      where not v.company_ids_match
+         or not v.directory_mapping_match
+      order by v.access_id desc
+      limit 10
+    ) x;
+
+    raise exception 'Portal company consistency check failed (% mismatches).', v_mismatch_count
+      using errcode = '23514', detail = v_sample::text;
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'mismatch_count', 0
+  );
+end;
+$$;
+
 create or replace function onboarding.normalize_company_name(p_value text)
 returns text
 language sql
 immutable
+set search_path = onboarding, public
 as $$
   select regexp_replace(lower(trim(coalesce(p_value, ''))), '[^a-z0-9]+', '', 'g');
 $$;
@@ -2073,7 +2799,7 @@ as $$
       cd.created_via
     from onboarding.company_directory cd
     cross join params p
-    where p.q <> ''
+    where char_length(p.q) >= 2
       and (
         cd.company_name ilike '%' || p.q || '%'
         or cd.normalized_name % onboarding.normalize_company_name(p.q)
@@ -2299,24 +3025,33 @@ as $$
     select p.auth_user_id, p.email, p.full_name, p.company_directory_id
     from onboarding.portal_user_profile p
     where p.auth_user_id = auth.uid()
+    union all
+    select iu.auth_user_id, iu.email, iu.full_name, null::bigint as company_directory_id
+    from onboarding.internal_user_access iu
+    where iu.auth_user_id = auth.uid()
+      and not exists (
+        select 1
+        from onboarding.portal_user_profile p
+        where p.auth_user_id = iu.auth_user_id
+      )
   ),
   membership as (
-    select m.onboarding_client_id, m.company_id, m.portal_role
-    from onboarding.portal_user_company_access m
-    where m.auth_user_id = auth.uid()
-      and m.is_active = true
-    order by m.updated_at desc, m.id desc
+    select
+      v.onboarding_client_id,
+      v.access_company_id as public_company_id,
+      v.company_directory_id,
+      v.portal_role,
+      v.canonical_company_name as company_name
+    from onboarding.v_portal_user_membership v
+    where v.auth_user_id = auth.uid()
+      and v.is_active = true
+    order by v.access_updated_at desc, v.access_id desc
     limit 1
   ),
   client_ctx as (
-    select c.id, c.display_name, c.status, c.current_stage, c.target_go_live_at, c.company_directory_id, c.company_id
+    select c.id, c.display_name, c.status, c.current_stage, c.target_go_live_at
     from onboarding.onboarding_client c
     join membership m on m.onboarding_client_id = c.id
-  ),
-  company_ctx as (
-    select d.id, d.company_name, d.public_company_id
-    from onboarding.company_directory d
-    join client_ctx c on c.company_directory_id = d.id
   )
   select case
     when exists (select 1 from profile) and exists (select 1 from membership) then
@@ -2331,9 +3066,9 @@ as $$
         'status', (select status from client_ctx),
         'current_stage', (select current_stage from client_ctx),
         'target_go_live_at', (select target_go_live_at from client_ctx),
-        'company_directory_id', (select id from company_ctx),
-        'company_name', (select company_name from company_ctx),
-        'public_company_id', (select public_company_id from company_ctx)
+        'company_directory_id', (select company_directory_id from membership),
+        'company_name', (select company_name from membership),
+        'public_company_id', (select public_company_id from membership)
       )
     else null
   end;
@@ -2354,14 +3089,18 @@ declare
   v_company_directory_id bigint;
   v_current_community_name text;
   v_requested_community_name text;
+  v_previous_stage onboarding.onboarding_stage;
+  v_next_stage onboarding.onboarding_stage;
   v_existing_submission_count integer := 0;
+  v_submission_key text;
+  v_existing_submission_id bigint;
 begin
   if v_auth_user_id is null then
     raise exception 'Authentication required' using errcode = '28000';
   end if;
 
-  select m.onboarding_client_id, c.company_id, c.company_directory_id, c.display_name
-  into v_onboarding_client_id, v_company_id, v_company_directory_id, v_current_community_name
+  select m.onboarding_client_id, c.company_id, c.company_directory_id, c.display_name, c.current_stage
+  into v_onboarding_client_id, v_company_id, v_company_directory_id, v_current_community_name, v_previous_stage
   from onboarding.portal_user_company_access m
   join onboarding.onboarding_client c on c.id = m.onboarding_client_id
   where m.auth_user_id = v_auth_user_id
@@ -2383,6 +3122,7 @@ begin
     ),
     ''
   );
+  v_submission_key := nullif(trim(coalesce(v_payload ->> 'submission_key', '')), '');
 
   select count(*)
   into v_existing_submission_count
@@ -2416,6 +3156,7 @@ begin
       v_auth_user_id
     )
     returning id into v_onboarding_client_id;
+    v_previous_stage := 'contract_signed'::onboarding.onboarding_stage;
 
   end if;
 
@@ -2456,7 +3197,29 @@ begin
       end,
       status = 'submitted',
       updated_by = v_auth_user_id
-  where c.id = v_onboarding_client_id;
+  where c.id = v_onboarding_client_id
+  returning c.current_stage into v_next_stage;
+
+  if v_submission_key is not null then
+    select s.id
+    into v_existing_submission_id
+    from onboarding.onboarding_submission s
+    where s.onboarding_client_id = v_onboarding_client_id
+      and s.submission_status in ('submitted', 'resubmitted')
+      and s.raw_payload_json ->> 'submission_key' = v_submission_key
+    order by s.id desc
+    limit 1;
+
+    if v_existing_submission_id is not null then
+      return jsonb_build_object(
+        'status', 'ok',
+        'onboarding_client_id', v_onboarding_client_id,
+        'submission_id', v_existing_submission_id,
+        'community_name', v_requested_community_name,
+        'idempotent_replay', true
+      );
+    end if;
+  end if;
 
   v_submission_id := onboarding.ingest_submission(
     v_onboarding_client_id,
@@ -2464,6 +3227,33 @@ begin
     'authenticated_portal',
     'submitted'
   );
+
+  if v_previous_stage is distinct from v_next_stage then
+    insert into onboarding.onboarding_stage_event (
+      onboarding_client_id,
+      stage_code,
+      event_type,
+      actor_type,
+      actor_user_id,
+      event_at,
+      metadata_json
+    )
+    values (
+      v_onboarding_client_id,
+      v_next_stage,
+      'stage_transition',
+      'client_portal',
+      v_auth_user_id,
+      now(),
+      jsonb_build_object(
+        'from_stage', v_previous_stage,
+        'to_stage', v_next_stage,
+        'reason', 'submit_my_intake',
+        'submission_id', v_submission_id,
+        'submission_key', v_submission_key
+      )
+    );
+  end if;
 
   return jsonb_build_object(
     'status', 'ok',
@@ -2515,7 +3305,8 @@ begin
         select
           c.id as onboarding_client_id,
           c.company_directory_id,
-          d.company_name,
+          c.company_id as public_company_id,
+          coalesce(d.company_name, pc."Name") as company_name,
           c.display_name as community_name,
           c.current_stage,
           c.status,
@@ -2534,6 +3325,7 @@ begin
           ) as last_submitted_at
         from onboarding.onboarding_client c
         left join onboarding.company_directory d on d.id = c.company_directory_id
+        left join public."Company" pc on pc."ID" = c.company_id
         where c.company_directory_id = v_scope_company_directory_id
       ),
       filtered as (
@@ -2566,6 +3358,7 @@ begin
         jsonb_build_object(
           'onboarding_client_id', f.onboarding_client_id,
           'company_directory_id', f.company_directory_id,
+          'public_company_id', f.public_company_id,
           'company_name', f.company_name,
           'community_name', f.community_name,
           'current_stage', f.current_stage,
@@ -2791,13 +3584,17 @@ begin
     return jsonb_build_object('status', 'invalid');
   end if;
 
+  if v_invite.expires_at is not null and v_invite.expires_at < now() then
+    return jsonb_build_object('status', 'expired');
+  end if;
+
   return jsonb_build_object(
     'status', 'ok',
     'invite_id', v_invite.id,
     'invited_email', v_invite.invited_email,
     'invited_full_name', v_invite.invited_full_name,
     'portal_role', v_invite.portal_role,
-    'expires_at', null
+    'expires_at', v_invite.expires_at
   );
 end;
 $$;
@@ -2841,13 +3638,20 @@ begin
   if v_portal_role not in ('internal', 'admin') then
     raise exception 'Invalid portal role';
   end if;
+  if p_expires_in_hours is not null and p_expires_in_hours < 1 then
+    raise exception 'Invite expiry hours must be >= 1';
+  end if;
+
+  if p_expires_in_hours is not null then
+    v_expires_at := now() + make_interval(hours => least(p_expires_in_hours, 24 * 90));
+  end if;
 
   v_token := encode(extensions.gen_random_bytes(24), 'hex');
   v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex');
-  v_base_url := coalesce(
-    nullif(trim(coalesce(p_invite_base_url, '')), ''),
-    'https://example.com/internal-signup.html'
-  );
+  v_base_url := nullif(trim(coalesce(p_invite_base_url, '')), '');
+  if v_base_url is null then
+    raise exception 'Invite base URL is required';
+  end if;
   v_invite_url := case
     when position('?' in v_base_url) > 0 then v_base_url || '&invite=' || v_token
     else v_base_url || '?invite=' || v_token
@@ -2879,7 +3683,7 @@ begin
     'invite_url', v_invite_url,
     'invited_email', v_email,
     'portal_role', v_portal_role,
-    'expires_at', null
+    'expires_at', v_expires_at
   );
 end;
 $$;
@@ -2932,6 +3736,9 @@ begin
 
   if v_invite.redeemed_at is not null then
     raise exception 'Invite is already used';
+  end if;
+  if v_invite.expires_at is not null and v_invite.expires_at < now() then
+    raise exception 'Invite is expired';
   end if;
 
   if v_session_email = '' then
@@ -3063,6 +3870,20 @@ begin
           c.target_go_live_at,
           c.updated_at,
           (
+            select count(*)::integer
+            from onboarding.onboarding_platform_access p
+            where p.onboarding_client_id = c.id
+              and p.is_required = true
+              and p.verified_status <> 'verified'
+          ) as required_platform_outstanding_count,
+          (
+            select count(*)::integer
+            from onboarding.onboarding_sync_job j
+            where j.onboarding_client_id = c.id
+              and j.job_type = 'canonical_sync'
+              and j.status = 'queued'
+          ) as queued_sync_jobs,
+          (
             select max(s.submitted_at)
             from onboarding.onboarding_submission s
             where s.onboarding_client_id = c.id
@@ -3088,6 +3909,8 @@ begin
           'current_stage', r.current_stage,
           'status', r.status,
           'target_go_live_at', r.target_go_live_at,
+          'required_platform_outstanding_count', r.required_platform_outstanding_count,
+          'queued_sync_jobs', r.queued_sync_jobs,
           'last_submitted_at', r.last_submitted_at,
           'updated_at', r.updated_at
         )
@@ -3096,6 +3919,180 @@ begin
       from rows r
     ),
     '[]'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.get_my_dashboard_resources()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_onboarding_client_id bigint;
+begin
+  if v_auth_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  select m.onboarding_client_id
+  into v_onboarding_client_id
+  from onboarding.portal_user_company_access m
+  where m.auth_user_id = v_auth_user_id
+    and m.is_active = true
+  order by m.updated_at desc, m.id desc
+  limit 1;
+
+  if v_onboarding_client_id is null then
+    return jsonb_build_object('assignments', '[]'::jsonb, 'links', '[]'::jsonb);
+  end if;
+
+  return jsonb_build_object(
+    'assignments',
+    coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'role_code', a.role_code,
+            'staff_name', a.staff_name,
+            'staff_email', a.staff_email,
+            'is_active', a.is_active
+          )
+          order by a.role_code asc, a.updated_at desc
+        )
+        from onboarding.onboarding_assignment a
+        where a.onboarding_client_id = v_onboarding_client_id
+      ),
+      '[]'::jsonb
+    ),
+    'links',
+    coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'system_code', l.system_code,
+            'external_url', l.external_url,
+            'external_id', l.external_id
+          )
+          order by l.system_code
+        )
+        from onboarding.onboarding_link l
+        where l.onboarding_client_id = v_onboarding_client_id
+      ),
+      '[]'::jsonb
+    )
+  );
+end;
+$$;
+
+create or replace function public.internal_get_sync_queue_summary()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  return jsonb_build_object(
+    'queued_count', (
+      select count(*)::integer
+      from onboarding.onboarding_sync_job
+      where status = 'queued'
+        and job_type = 'canonical_sync'
+    ),
+    'failed_count', (
+      select count(*)::integer
+      from onboarding.onboarding_sync_job
+      where status = 'failed'
+        and job_type = 'canonical_sync'
+    ),
+    'processed_count', (
+      select count(*)::integer
+      from onboarding.onboarding_sync_job
+      where status = 'processed'
+        and job_type = 'canonical_sync'
+    ),
+    'last_queued_at', (
+      select max(queued_at)
+      from onboarding.onboarding_sync_job
+      where status = 'queued'
+        and job_type = 'canonical_sync'
+    )
+  );
+end;
+$$;
+
+create or replace function public.internal_process_sync_jobs(
+  p_limit integer default 25
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_limit integer := greatest(1, least(coalesce(p_limit, 25), 200));
+  v_processed integer := 0;
+  v_failed integer := 0;
+  v_row record;
+  v_errors jsonb := '[]'::jsonb;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  for v_row in
+    select j.id, j.onboarding_client_id
+    from onboarding.onboarding_sync_job j
+    where j.status = 'queued'
+      and j.job_type = 'canonical_sync'
+    order by j.queued_at asc, j.id asc
+    limit v_limit
+  loop
+    begin
+      perform onboarding.sync_canonical_fields(v_row.onboarding_client_id);
+      v_processed := v_processed + 1;
+    exception
+      when others then
+        v_failed := v_failed + 1;
+        update onboarding.onboarding_sync_job
+        set status = 'failed',
+            attempt_count = attempt_count + 1,
+            last_error = SQLERRM,
+            processed_at = now(),
+            updated_at = now()
+        where id = v_row.id;
+
+        v_errors := v_errors || jsonb_build_object(
+          'job_id', v_row.id,
+          'onboarding_client_id', v_row.onboarding_client_id,
+          'error', SQLERRM
+        );
+    end;
+  end loop;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'processed', v_processed,
+    'failed', v_failed,
+    'queued_remaining', (
+      select count(*)::integer
+      from onboarding.onboarding_sync_job
+      where status = 'queued'
+        and job_type = 'canonical_sync'
+    ),
+    'errors', v_errors
   );
 end;
 $$;
@@ -3133,6 +4130,147 @@ as $$
   );
 $$;
 
+create or replace function public.list_my_platform_access()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_onboarding_client_id bigint;
+begin
+  if v_auth_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  select m.onboarding_client_id
+  into v_onboarding_client_id
+  from onboarding.portal_user_company_access m
+  where m.auth_user_id = v_auth_user_id
+    and m.is_active = true
+  order by m.updated_at desc, m.id desc
+  limit 1;
+
+  if v_onboarding_client_id is null then
+    return '[]'::jsonb;
+  end if;
+
+  return coalesce(
+    (
+      select jsonb_agg(
+        jsonb_build_object(
+          'platform_code', p.platform_code,
+          'platform_label', p.platform_label,
+          'requested_status', p.requested_status,
+          'granted_status', p.granted_status,
+          'verified_status', p.verified_status,
+          'granted_at', p.granted_at,
+          'updated_at', p.updated_at
+        )
+        order by p.platform_label asc
+      )
+      from onboarding.onboarding_platform_access p
+      where p.onboarding_client_id = v_onboarding_client_id
+    ),
+    '[]'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.upsert_my_platform_access(
+  p_platform_code text,
+  p_is_access_granted boolean,
+  p_notes text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_onboarding_client_id bigint;
+  v_platform_code text := lower(trim(coalesce(p_platform_code, '')));
+  v_platform_label text;
+  v_is_required_default boolean := true;
+  v_row onboarding.onboarding_platform_access%rowtype;
+begin
+  if v_auth_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if v_platform_code = '' then
+    raise exception 'Platform code is required';
+  end if;
+
+  select m.onboarding_client_id
+  into v_onboarding_client_id
+  from onboarding.portal_user_company_access m
+  where m.auth_user_id = v_auth_user_id
+    and m.is_active = true
+  order by m.updated_at desc, m.id desc
+  limit 1;
+
+  if v_onboarding_client_id is null then
+    raise exception 'No onboarding membership found for current user';
+  end if;
+
+  select p.display_name, p.is_required_default
+  into v_platform_label, v_is_required_default
+  from onboarding.platform_code_lookup p
+  where p.platform_code = v_platform_code
+  limit 1;
+
+  if v_platform_label is null then
+    raise exception 'Unsupported platform code: %', v_platform_code;
+  end if;
+
+  insert into onboarding.onboarding_platform_access (
+    onboarding_client_id,
+    platform_code,
+    platform_label,
+    is_required,
+    requested_status,
+    granted_status,
+    granted_at,
+    notes
+  )
+  values (
+    v_onboarding_client_id,
+    v_platform_code,
+    v_platform_label,
+    coalesce(v_is_required_default, true),
+    case when coalesce(p_is_access_granted, false) then 'requested'::onboarding.platform_status else 'not_requested'::onboarding.platform_status end,
+    case when coalesce(p_is_access_granted, false) then 'granted'::onboarding.platform_status else 'not_requested'::onboarding.platform_status end,
+    case when coalesce(p_is_access_granted, false) then now() else null end,
+    nullif(trim(coalesce(p_notes, '')), '')
+  )
+  on conflict (onboarding_client_id, platform_code)
+  do update set
+    requested_status = case
+      when coalesce(p_is_access_granted, false) then 'requested'::onboarding.platform_status
+      else onboarding.onboarding_platform_access.requested_status
+    end,
+    granted_status = case
+      when coalesce(p_is_access_granted, false) then 'granted'::onboarding.platform_status
+      else 'not_requested'::onboarding.platform_status
+    end,
+    granted_at = case when coalesce(p_is_access_granted, false) then now() else null end,
+    notes = coalesce(nullif(trim(coalesce(p_notes, '')), ''), onboarding.onboarding_platform_access.notes),
+    updated_at = now()
+  returning * into v_row;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'onboarding_client_id', v_onboarding_client_id,
+    'platform_code', v_row.platform_code,
+    'requested_status', v_row.requested_status,
+    'granted_status', v_row.granted_status,
+    'verified_status', v_row.verified_status
+  );
+end;
+$$;
+
 create or replace function public.upsert_my_task_state(
   p_task_key text,
   p_is_complete boolean,
@@ -3147,9 +4285,15 @@ as $$
 declare
   v_auth_user_id uuid := auth.uid();
   v_onboarding_client_id bigint;
+  v_task_key text := trim(coalesce(p_task_key, ''));
+  v_previous_stage onboarding.onboarding_stage;
+  v_next_stage onboarding.onboarding_stage;
 begin
   if v_auth_user_id is null then
     raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if v_task_key = '' then
+    raise exception 'Task key is required';
   end if;
 
   select m.onboarding_client_id
@@ -3174,7 +4318,7 @@ begin
   )
   values (
     v_onboarding_client_id,
-    trim(p_task_key),
+    v_task_key,
     p_group_code,
     p_task_text,
     coalesce(p_is_complete, false),
@@ -3188,10 +4332,60 @@ begin
     updated_by_source = excluded.updated_by_source,
     updated_at = now();
 
+  if v_task_key = 'step_3_account_access_complete' then
+    select c.current_stage
+    into v_previous_stage
+    from onboarding.onboarding_client c
+    where c.id = v_onboarding_client_id
+    for update;
+
+    v_next_stage := case
+      when coalesce(p_is_complete, false) = true
+        and v_previous_stage < 'creative_kickoff'::onboarding.onboarding_stage
+        then 'creative_kickoff'::onboarding.onboarding_stage
+      when coalesce(p_is_complete, false) = false
+        and v_previous_stage = 'creative_kickoff'::onboarding.onboarding_stage
+        then 'account_access'::onboarding.onboarding_stage
+      else v_previous_stage
+    end;
+
+    update onboarding.onboarding_client c
+    set current_stage = v_next_stage,
+        updated_by = v_auth_user_id
+    where c.id = v_onboarding_client_id;
+
+    if v_previous_stage is distinct from v_next_stage then
+      insert into onboarding.onboarding_stage_event (
+        onboarding_client_id,
+        stage_code,
+        event_type,
+        actor_type,
+        actor_user_id,
+        event_at,
+        metadata_json
+      )
+      values (
+        v_onboarding_client_id,
+        v_next_stage,
+        'stage_transition',
+        'client_portal',
+        v_auth_user_id,
+        now(),
+        jsonb_build_object(
+          'from_stage', v_previous_stage,
+          'to_stage', v_next_stage,
+          'reason', 'step_3_account_access_complete',
+          'task_key', v_task_key,
+          'is_complete', coalesce(p_is_complete, false)
+        )
+      );
+    end if;
+  end if;
+
   return jsonb_build_object(
     'status', 'ok',
     'onboarding_client_id', v_onboarding_client_id,
-    'task_key', trim(p_task_key),
+    'task_key', v_task_key,
     'is_complete', coalesce(p_is_complete, false)
   );
 end;
@@ -3227,18 +4421,25 @@ revoke execute on function public.public_submit_intake(jsonb) from anon;
 revoke execute on function public.public_get_onboarding_snapshot(bigint, uuid) from anon;
 revoke execute on function public.public_upsert_task_state(bigint, uuid, text, boolean, text, text) from anon;
 revoke execute on function public.public_list_task_states(bigint, uuid) from anon;
+revoke execute on function public.internal_assert_portal_company_consistency() from public, anon, authenticated;
 
 grant execute on function public.search_companies(text, integer) to anon, authenticated, service_role;
 grant execute on function public.complete_portal_signup(text, text, bigint, text) to authenticated, service_role;
 grant execute on function public.get_my_portal_context() to authenticated, service_role;
 grant execute on function public.list_my_communities() to authenticated, service_role;
 grant execute on function public.get_my_latest_submission_payload(bigint) to authenticated, service_role;
+grant execute on function public.get_my_dashboard_resources() to authenticated, service_role;
 grant execute on function public.set_my_active_community(bigint) to authenticated, service_role;
 grant execute on function public.submit_my_intake(jsonb) to authenticated, service_role;
 grant execute on function public.list_my_task_states() to authenticated, service_role;
+grant execute on function public.list_my_platform_access() to authenticated, service_role;
+grant execute on function public.upsert_my_platform_access(text, boolean, text) to authenticated, service_role;
 grant execute on function public.upsert_my_task_state(text, boolean, text, text) to authenticated, service_role;
 grant execute on function public.get_internal_portal_context() to authenticated, service_role;
 grant execute on function public.internal_list_onboarding_overview(text, onboarding.onboarding_stage, integer) to authenticated, service_role;
+grant execute on function public.internal_get_sync_queue_summary() to authenticated, service_role;
+grant execute on function public.internal_process_sync_jobs(integer) to authenticated, service_role;
+grant execute on function public.internal_assert_portal_company_consistency() to service_role;
 grant execute on function public.create_internal_signup_invite(text, text, text, integer, text) to authenticated, service_role;
 grant execute on function public.get_internal_signup_invite(text) to anon, authenticated, service_role;
 grant execute on function public.redeem_internal_signup_invite(text, text) to authenticated, service_role;

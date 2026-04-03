@@ -1,14 +1,18 @@
 import {
   getCurrentSession,
   getLatestSubmissionPayload,
+  getInternalPortalContext,
+  listMyPlatformAccess,
   getMyPortalContext,
   listMyCommunities,
   listTaskStates,
   onAuthStateChange,
   setMyActiveCommunity,
   signOutUser,
+  upsertMyPlatformAccess,
   upsertTaskState,
 } from "./api.js";
+import { escapeHtml, sanitizeUrl } from "./utils/sanitize.js";
 
 const STAGE_SEQUENCE = [
   "contract_signed",
@@ -35,7 +39,7 @@ const STAGE_COPY = {
 };
 
 const PLATFORM_GUIDES = {
-  "Google Ads Manager": "https://www.p11.com/marketing/kb/google-analytics/",
+  "Google Ads Manager": "https://support.google.com/google-ads/answer/6372672",
   "Google Analytics 4 (GA4)": "https://www.p11.com/marketing/kb/google-analytics/",
   "Google Tag Manager (GTM)": "https://www.p11.com/marketing/kb/add-user-to-gtm-account/",
   "Google Search Console": "https://www.p11.com/marketing/kb/search-console/",
@@ -156,6 +160,20 @@ function applyRoleNavigation() {
     state.portalContext?.portal_role || ""
   );
   document.body.classList.toggle("internal-user", isInternalRole);
+  const homeLink = document.getElementById("accountAccessHomeLink");
+  const backLink = document.getElementById("accountAccessBackLink");
+  const returnLink = document.getElementById("accountAccessReturnLink");
+  if (homeLink) {
+    homeLink.setAttribute("href", isInternalRole ? "/internal.html" : "/client-home.html");
+    homeLink.classList.toggle("internal-home-link-active", isInternalRole);
+  }
+  if (backLink) {
+    backLink.textContent = isInternalRole ? "Open Community Intake" : "Back to Step 2 Intake";
+  }
+  if (returnLink) {
+    returnLink.setAttribute("href", isInternalRole ? "/internal.html" : "/p11-onboarding-dashboard.html");
+    returnLink.textContent = isInternalRole ? "Return to Internal Home" : "Return to Dashboard";
+  }
 }
 
 function applyContextHeader() {
@@ -361,20 +379,26 @@ function renderPlatformRows(platforms) {
 
   list.innerHTML = platforms
     .map((platform) => {
+      const safeCode = escapeHtml(platform.platform_code);
+      const safeLabel = escapeHtml(platform.platform_label);
       const taskKey = buildTaskKey(platform.platform_code, platform.platform_label);
-      const guideCell = platform.guide_url
-        ? `<a class="guide-link" href="${platform.guide_url}" target="_blank" rel="noopener noreferrer">Guide</a>`
+      const safeTaskKey = escapeHtml(taskKey);
+      const safeGuideUrl = sanitizeUrl(platform.guide_url);
+      const guideCell = safeGuideUrl
+        ? `<a class="guide-link" href="${escapeHtml(
+            safeGuideUrl
+          )}" target="_blank" rel="noopener noreferrer">Guide</a>`
         : `<span class="guide-link muted">No guide</span>`;
       return `
         <div class="platform-row">
           <div>
-            <div class="platform-name">${platform.platform_label}</div>
-            <div class="platform-meta">Platform Code: ${platform.platform_code}</div>
+            <div class="platform-name">${safeLabel}</div>
+            <div class="platform-meta">Platform Code: ${safeCode}</div>
           </div>
           <div class="platform-actions">
             ${guideCell}
             <label class="done-toggle">
-              <input type="checkbox" class="platform-cb" data-task-key="${taskKey}" data-platform-label="${platform.platform_label}">
+              <input type="checkbox" class="platform-cb" data-task-key="${safeTaskKey}" data-platform-label="${safeLabel}" data-platform-code="${safeCode}">
               Access Granted
             </label>
           </div>
@@ -387,12 +411,18 @@ function renderPlatformRows(platforms) {
 }
 
 async function hydrateTaskStates() {
-  const taskStates = await listTaskStates();
+  const [taskStates, platformRows] = await Promise.all([listTaskStates(), listMyPlatformAccess()]);
   const byKey = new Map(taskStates.map((row) => [row.task_key, row]));
+  const platformByCode = new Map(
+    platformRows.map((row) => [String(row.platform_code || "").toLowerCase(), row])
+  );
   document.querySelectorAll(".platform-cb").forEach((checkbox) => {
     const key = checkbox.dataset.taskKey;
+    const code = String(checkbox.dataset.platformCode || "").toLowerCase();
     const stateRow = byKey.get(key);
-    checkbox.checked = Boolean(stateRow?.is_complete);
+    const platformRow = platformByCode.get(code);
+    const grantedFromPlatform = platformRow?.granted_status === "granted";
+    checkbox.checked = grantedFromPlatform || Boolean(stateRow?.is_complete);
     checkbox.dataset.persisted = checkbox.checked ? "true" : "false";
   });
   const progress = updateProgress();
@@ -411,7 +441,12 @@ async function hydrateTaskStates() {
 
 async function persistPlatformState(checkbox) {
   const taskKey = checkbox.dataset.taskKey;
+  const platformCode = checkbox.dataset.platformCode;
   const taskText = `${checkbox.dataset.platformLabel || "Platform"} access granted`;
+  await upsertMyPlatformAccess({
+    platformCode,
+    isAccessGranted: checkbox.checked,
+  });
   await upsertTaskState({
     taskKey,
     isComplete: checkbox.checked,
@@ -452,7 +487,6 @@ async function savePlatformProgress() {
     setSaveStatus("Progress saved.", "success");
   } catch (error) {
     setSaveStatus(`Unable to save progress: ${error.message}`, "error");
-    alert(`Unable to save platform state: ${error.message}`);
   } finally {
     state.savingProgress = false;
     refreshSaveButtonState();
@@ -508,9 +542,9 @@ function bindHandlers() {
   document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     try {
       await signOutUser();
-      window.location.href = "/p11-onboarding-dashboard.html";
+      window.location.href = "/client-home.html";
     } catch (error) {
-      alert(error.message);
+      setSaveStatus(error.message, "error");
     }
   });
 
@@ -520,7 +554,7 @@ function bindHandlers() {
     try {
       await switchActiveCommunity(nextId);
     } catch (error) {
-      alert(`Unable to switch community: ${error.message}`);
+      setSaveStatus(`Unable to switch community: ${error.message}`, "error");
     }
   });
 
@@ -530,9 +564,10 @@ function bindHandlers() {
 }
 
 async function hydrateAuthenticated() {
+  const internalContext = await getInternalPortalContext().catch(() => null);
   const context = await getMyPortalContext();
   if (!context) {
-    window.location.href = "/p11-onboarding-dashboard.html";
+    window.location.href = internalContext ? "/internal.html" : "/client-home.html";
     return;
   }
   state.portalContext = context;
@@ -547,7 +582,7 @@ async function initialize() {
   const session = await getCurrentSession();
   state.session = session;
   if (!session) {
-    window.location.href = "/p11-onboarding-dashboard.html";
+    window.location.href = "/client-home.html";
     return;
   }
 
@@ -556,7 +591,7 @@ async function initialize() {
   onAuthStateChange(async (_event, nextSession) => {
     state.session = nextSession;
     if (!nextSession) {
-      window.location.href = "/p11-onboarding-dashboard.html";
+      window.location.href = "/client-home.html";
       return;
     }
     await hydrateAuthenticated();

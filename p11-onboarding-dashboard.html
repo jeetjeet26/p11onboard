@@ -107,6 +107,13 @@ body {
   border-color: var(--red);
   color: white;
 }
+.header-nav-link.client-only-nav { display: inline-flex; }
+.header-nav-link.home-link.internal-home-link-active {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+}
+body.internal-user .header-nav-link.client-only-nav { display: none; }
 .header-nav-link.internal-only-nav { display: none; }
 body.internal-user .header-nav-link.internal-only-nav { display: inline-flex; }
 .header-right {
@@ -271,7 +278,34 @@ body.internal-user .header-nav-link.internal-only-nav { display: inline-flex; }
   margin-top: 22px; padding: 14px 18px;
   background: var(--red-light); border-left: 3px solid var(--red);
   border-radius: 0 6px 6px 0;
-  display: flex; align-items: flex-start; gap: 12px;
+  display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; flex-wrap: wrap;
+}
+.step-callout-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.continue-onboarding-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: var(--white);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+.continue-onboarding-btn:hover {
+  background: #f03d0d;
+  border-color: #f03d0d;
 }
 .sc-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
 .sc-title { font-size: 13px; font-weight: 800; color: var(--charcoal); margin-bottom: 3px; }
@@ -627,6 +661,15 @@ body.auth-pending .auth-root {
 }
 .auth-message.error { color: #b42318; }
 .auth-message.success { color: var(--green); }
+.auth-link {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--gray);
+}
+.auth-link a {
+  color: var(--charcoal);
+  text-decoration: underline;
+}
 .company-results {
   display: none;
   margin-top: 8px;
@@ -704,14 +747,17 @@ body.auth-pending .auth-root {
     <div class="header-divider"></div>
     <div class="header-tagline">Amplified Real Estate Marketing</div>
     <nav class="header-nav" aria-label="App Navigation">
-      <a class="header-nav-link" href="/client-home.html">Client Home</a>
-      <a class="header-nav-link active" href="/p11-onboarding-dashboard.html">Dashboard</a>
-      <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/internal.html">Internal Portal</a>
+      <a class="header-nav-link home-link" id="dashboardHomeLink" href="/client-home.html">Home</a>
+      <a class="header-nav-link active client-only-nav" href="/p11-onboarding-dashboard.html">Dashboard</a>
       <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-automation-flow.html">Automation Flow</a>
       <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-project-brief.html">Project Brief</a>
     </nav>
   </div>
   <div class="header-right">
+    <div class="view-toggle" aria-label="Portal view toggle">
+      <button class="toggle-btn active" id="clientToggleBtn" type="button">Client View</button>
+      <button class="toggle-btn" id="teamToggleBtn" type="button" style="display:none;">Team View</button>
+    </div>
     <div class="session-info" id="sessionInfo"></div>
     <button class="logout-btn" id="logoutBtn" type="button">Log Out</button>
   </div>
@@ -782,11 +828,14 @@ body.auth-pending .auth-root {
       </div>
     </div>
     <div class="step-callout">
-      <span class="sc-icon">⏳</span>
-      <div>
-        <div class="sc-title" id="stepTitle">Step 2 of 7 — Complete Your Intake Questionnaire</div>
-        <div class="sc-text" id="stepText">Fill out all sections below so we can start building your campaigns. Most clients finish in about 15 minutes. Your P11creative account manager will follow up within 1 business day of submission.</div>
+      <div class="step-callout-main">
+        <span class="sc-icon">⏳</span>
+        <div>
+          <div class="sc-title" id="stepTitle">Step 2 of 7 — Complete Your Intake Questionnaire</div>
+          <div class="sc-text" id="stepText">Fill out all sections below so we can start building your campaigns. Most clients finish in about 15 minutes. Your P11creative account manager will follow up within 1 business day of submission.</div>
+        </div>
       </div>
+      <a id="continueOnboardingBtn" class="continue-onboarding-btn" href="/p11-onboarding-account-access.html" hidden>Continue Onboarding</a>
     </div>
   </div>
 
@@ -832,7 +881,7 @@ body.auth-pending .auth-root {
         </div>
         <div class="cl-row">
           <div class="cl-dot cl-now">!</div>
-          <span class="cl-text"><strong>Questionnaire + Account Access</strong></span>
+          <span class="cl-text"><strong>Questionnaire + Platform Access</strong></span>
           <span class="cl-meta now">Days 1–3</span>
         </div>
         <div class="cl-row">
@@ -1072,14 +1121,14 @@ body.auth-pending .auth-root {
       <div class="q-section">
         <div class="q-sec-head">5 — Platforms You Want P11creative to Support</div>
         <p style="font-size:12.5px; color:var(--gray); margin-bottom:14px; line-height:1.7;">
-          Select each platform in your support scope. After you submit this intake, Step 3 will be a
-          dedicated Account Access page with invite instructions and status tracking for the selected platforms.
+          Select each platform in your support scope. After submission, use Continue Onboarding to open the
+          platform access checklist with invite instructions and status tracking.
         </p>
         <div class="acc-grid">
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Google Ads Manager</span>
-            <a class="acc-link" href="https://www.p11.com/marketing/kb/google-analytics/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://support.google.com/google-ads/answer/6372672" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
@@ -1264,6 +1313,7 @@ body.auth-pending .auth-root {
       </div>
 
       <button class="submit-btn" onclick="submitForm()">Submit Questionnaire to P11creative →</button>
+      <div id="submitStatus" class="auth-message" style="margin-top:12px;" aria-live="polite"></div>
     </div>
     <!-- END QUESTIONNAIRE -->
 
@@ -1276,29 +1326,21 @@ body.auth-pending .auth-root {
     <div class="int-section" style="padding:20px 24px;">
       <div class="section-label" style="margin-bottom:14px;">Onboarding Snapshot</div>
       <div class="stat-grid">
-        <div class="stat-box"><div class="stat-num" style="color:var(--red)">2/7</div><div class="stat-lbl">Stages Complete</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:var(--amber)">3</div><div class="stat-lbl">Awaiting Client</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:var(--charcoal)">8</div><div class="stat-lbl">Open P11 Tasks</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:var(--green)">2</div><div class="stat-lbl">Completed</div></div>
+        <div class="stat-box"><div class="stat-num" id="snapshotStagesComplete" style="color:var(--red)">0/7</div><div class="stat-lbl">Stages Complete</div></div>
+        <div class="stat-box"><div class="stat-num" id="snapshotAwaitingClient" style="color:var(--amber)">0</div><div class="stat-lbl">Awaiting Client</div></div>
+        <div class="stat-box"><div class="stat-num" id="snapshotOpenP11Tasks" style="color:var(--charcoal)">0</div><div class="stat-lbl">Open P11 Tasks</div></div>
+        <div class="stat-box"><div class="stat-num" id="snapshotCompletedTasks" style="color:var(--green)">0</div><div class="stat-lbl">Completed</div></div>
       </div>
     </div>
 
     <div class="two-col">
       <div class="card">
         <div class="card-title">👥 Team Assignments</div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Account Manager</span><span class="cl-meta">→ Assign</span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Project Manager</span><span class="cl-meta">→ Assign</span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Digital Marketing Lead</span><span class="cl-meta">→ Assign</span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Creative Lead</span><span class="cl-meta">→ Assign</span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Analytics / Reporting</span><span class="cl-meta">→ Assign</span></div>
+        <div id="teamAssignmentsList"></div>
       </div>
       <div class="card">
         <div class="card-title">🔗 Quick Links</div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Accelo Project</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Basecamp Project Page</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Dropbox Creative Folder</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Google Drive Campaign Sheet</span><span class="cl-meta"><a href="#" style="color:var(--red); font-weight:700;">Open →</a></span></div>
-        <div class="cl-row"><div class="cl-dot cl-pend">·</div><span class="cl-text">Softr Client Portal</span><span class="cl-meta"><a href="https://clients.p11.com" target="_blank" style="color:var(--red); font-weight:700;">Open →</a></span></div>
+        <div id="quickLinksList"></div>
       </div>
     </div>
 

@@ -1,0 +1,30 @@
+---
+description: Prevent mixed company ID namespace joins in onboarding SQL/debug work
+alwaysApply: true
+---
+
+# Portal Company Join Safety
+
+- Treat `company_id` and `company_directory_id` as different namespaces.
+- Never join `onboarding.portal_user_company_access.company_id` to `onboarding.company_directory.id`.
+- Canonical joins:
+  - `company_id` -> `public."Company"."ID"`
+  - `company_directory_id` -> `onboarding.company_directory.id`
+- Prefer `onboarding.v_portal_user_membership` for membership + company context instead of ad-hoc joins.
+- After schema changes touching company mappings, run `public.internal_assert_portal_company_consistency()`.
+
+## Example
+
+```sql
+-- BAD
+select *
+from onboarding.portal_user_company_access m
+join onboarding.company_directory d on d.id = m.company_id;
+
+-- GOOD
+select *
+from onboarding.portal_user_company_access m
+join onboarding.onboarding_client c on c.id = m.onboarding_client_id
+left join public."Company" pc on pc."ID" = c.company_id
+left join onboarding.company_directory d on d.id = c.company_directory_id;
+```

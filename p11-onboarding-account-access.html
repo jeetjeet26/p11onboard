@@ -117,6 +117,13 @@
       border-color: var(--red);
       color: white;
     }
+    .header-nav-link.client-only-nav { display: inline-flex; }
+    .header-nav-link.home-link.internal-home-link-active {
+      background: var(--red);
+      border-color: var(--red);
+      color: white;
+    }
+    body.internal-user .header-nav-link.client-only-nav { display: none; }
     .header-nav-link.internal-only-nav { display: none; }
     body.internal-user .header-nav-link.internal-only-nav { display: inline-flex; }
     .header-right {
@@ -538,10 +545,8 @@
       <div class="header-divider"></div>
       <div class="header-tagline">Amplified Real Estate Marketing</div>
       <nav class="header-nav" aria-label="App Navigation">
-        <a class="header-nav-link" href="/client-home.html">Client Home</a>
-        <a class="header-nav-link" href="/p11-onboarding-dashboard.html">Dashboard</a>
-        <a class="header-nav-link active" href="/p11-onboarding-account-access.html">Account Access</a>
-        <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/internal.html">Internal Portal</a>
+        <a class="header-nav-link home-link" id="accountAccessHomeLink" href="/client-home.html">Home</a>
+        <a class="header-nav-link client-only-nav" href="/p11-onboarding-dashboard.html">Dashboard</a>
         <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-automation-flow.html">Automation Flow</a>
         <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-project-brief.html">Project Brief</a>
       </nav>
@@ -639,8 +644,8 @@
       <div class="platform-list" id="platformList"></div>
 
       <div class="footer-links">
-        <a class="link-btn secondary" href="/p11-onboarding-dashboard.html">Back to Step 2 Intake</a>
-        <a class="link-btn primary" href="/p11-onboarding-dashboard.html">Return to Dashboard</a>
+        <a class="link-btn secondary" id="accountAccessBackLink" href="/p11-onboarding-dashboard.html">Back to Step 2 Intake</a>
+        <a class="link-btn primary" id="accountAccessReturnLink" href="/p11-onboarding-dashboard.html">Return to Dashboard</a>
       </div>
     </section>
   </main>

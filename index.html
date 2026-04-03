@@ -25,6 +25,9 @@
         background: var(--bg);
         color: var(--charcoal);
       }
+      body.route-checking {
+        opacity: 0;
+      }
 
       .header {
         background: var(--charcoal);
@@ -170,7 +173,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="route-checking">
     <header class="header">
       <div class="brand">
         <div class="mark">P11</div>
@@ -183,9 +186,6 @@
         <a class="active" href="/">Home</a>
         <a href="/client-home.html">Client Home</a>
         <a href="/p11-onboarding-dashboard.html">Dashboard</a>
-        <a href="/internal.html">Internal Portal</a>
-        <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
-        <a href="/p11-onboarding-project-brief.html">Project Brief</a>
       </nav>
     </header>
 
@@ -193,8 +193,7 @@
       <section class="hero">
         <h1>Welcome to the P11 Onboarding Workspace</h1>
         <p>
-          Use this app to onboard new communities under existing company accounts, track onboarding stages,
-          and review implementation docs for automation and internal rollout.
+          Use this app to onboard new communities under existing company accounts and track onboarding stages.
         </p>
       </section>
 
@@ -213,28 +212,9 @@
             Login-required onboarding form and client/internal views for company-linked intake workflows.
           </p>
         </a>
-        <a class="card-link" href="/internal.html">
-          <span class="card-label">Private</span>
-          <div class="card-title">Internal Portal</div>
-          <p class="card-copy">
-            Internal-only login with global visibility across all companies and communities in onboarding.
-          </p>
-        </a>
-        <a class="card-link" href="/p11-onboarding-automation-flow.html">
-          <span class="card-label">Architecture</span>
-          <div class="card-title">Automation Flow</div>
-          <p class="card-copy">
-            End-to-end blueprint for triggers and system handoffs across Accelo, Basecamp, Dropbox, and more.
-          </p>
-        </a>
-        <a class="card-link" href="/p11-onboarding-project-brief.html">
-          <span class="card-label">Context</span>
-          <div class="card-title">Project Brief</div>
-          <p class="card-copy">
-            Business context, objectives, and status summary for the onboarding implementation.
-          </p>
-        </a>
       </section>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./frontend/src/root-main.js"></script>
   </body>
 </html>

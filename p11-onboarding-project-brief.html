@@ -19,6 +19,7 @@
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--charcoal); -webkit-font-smoothing:antialiased; }
+body.auth-gate-pending { opacity: 0; }
 
 .header {
   background:var(--charcoal); padding:0 44px; min-height:62px;
@@ -164,7 +165,7 @@ p  { font-size:13px; color:var(--gray); line-height:1.7; }
 }
 </style>
 </head>
-<body>
+<body class="auth-gate-pending">
 
 <header class="header">
   <div>
@@ -173,9 +174,7 @@ p  { font-size:13px; color:var(--gray); line-height:1.7; }
   </div>
   <div class="header-right">
     <nav class="header-nav" aria-label="App Navigation">
-      <a href="/">Home</a>
-      <a href="/p11-onboarding-dashboard.html">Dashboard</a>
-      <a href="/internal.html">Internal Portal</a>
+      <a href="/internal.html">Home</a>
       <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
       <a class="active" href="/p11-onboarding-project-brief.html">Project Brief</a>
     </nav>
@@ -367,5 +366,7 @@ function copyPrompt() {
   });
 }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module" src="./frontend/src/internal-static-guard.js"></script>
 </body>
 </html>

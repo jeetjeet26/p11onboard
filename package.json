@@ -6,9 +6,12 @@
     "dev": "vite --host localhost --port 3000",
     "build": "vite build",
     "preview": "vite preview --host localhost --port 3000",
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "test": "vitest run",
+    "check:db-company-consistency": "node scripts/check-db-company-consistency.mjs"
   },
   "devDependencies": {
-    "vite": "latest"
+    "vite": "8.0.1",
+    "vitest": "latest"
   }
 }

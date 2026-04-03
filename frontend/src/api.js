@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { BRAND_ASSET_BUCKET } from "./config.js";
 
 export async function signUpUser({ email, password, fullName }) {
   const { data, error } = await supabase.auth.signUp({
@@ -30,6 +31,15 @@ export async function signInUser({ email, password }) {
   }
 
   return data;
+}
+
+export async function requestPasswordReset({ email, redirectTo }) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
+  if (error) {
+    throw new Error(`Password reset failed: ${error.message}`);
+  }
 }
 
 export async function signOutUser() {
@@ -128,6 +138,46 @@ export async function submitIntake(payload) {
   return data;
 }
 
+function slugifyFilename(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export async function uploadBrandAssets({ onboardingClientId, files = [] }) {
+  const validClientId = Number(onboardingClientId);
+  if (!validClientId || !Array.isArray(files) || !files.length) return [];
+
+  const uploaded = [];
+  for (const file of files) {
+    const now = Date.now();
+    const safeName = slugifyFilename(file.name) || `asset-${now}`;
+    const objectPath = `client-${validClientId}/${now}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(BRAND_ASSET_BUCKET)
+      .upload(objectPath, file, {
+        upsert: false,
+        contentType: file.type || undefined,
+      });
+    if (uploadError) {
+      throw new Error(`Brand asset upload failed: ${uploadError.message}`);
+    }
+
+    uploaded.push({
+      file_name: file.name,
+      mime_type: file.type || null,
+      file_size_bytes: file.size || null,
+      storage_path: objectPath,
+      external_url: null,
+    });
+  }
+
+  return uploaded;
+}
+
 export async function getOnboardingSnapshot() {
   const { data, error } = await supabase.rpc("get_my_portal_context");
 
@@ -192,6 +242,30 @@ export async function upsertTaskState({
   return data;
 }
 
+export async function listMyPlatformAccess() {
+  const { data, error } = await supabase.rpc("list_my_platform_access");
+  if (error) {
+    throw new Error(`Platform access fetch failed: ${error.message}`);
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+export async function upsertMyPlatformAccess({
+  platformCode,
+  isAccessGranted,
+  notes = null,
+}) {
+  const { data, error } = await supabase.rpc("upsert_my_platform_access", {
+    p_platform_code: platformCode,
+    p_is_access_granted: isAccessGranted,
+    p_notes: notes,
+  });
+  if (error) {
+    throw new Error(`Platform access update failed: ${error.message}`);
+  }
+  return data;
+}
+
 export async function listTaskStates() {
   const { data, error } = await supabase.rpc("list_my_task_states");
 
@@ -226,17 +300,26 @@ export async function internalListOnboardingOverview({ search = "", stage = null
   return Array.isArray(data) ? data : [];
 }
 
+export async function getMyDashboardResources() {
+  const { data, error } = await supabase.rpc("get_my_dashboard_resources");
+  if (error) {
+    throw new Error(`Dashboard resources fetch failed: ${error.message}`);
+  }
+  return data || { assignments: [], links: [] };
+}
+
 export async function createInternalSignupInvite({
   email,
   fullName = null,
   portalRole = "internal",
+  expiresInHours = null,
   inviteBaseUrl = null,
 }) {
   const { data, error } = await supabase.rpc("create_internal_signup_invite", {
     p_email: email,
     p_full_name: fullName,
     p_portal_role: portalRole,
-    p_expires_in_hours: null,
+    p_expires_in_hours: expiresInHours,
     p_invite_base_url: inviteBaseUrl,
   });
 
@@ -270,4 +353,22 @@ export async function redeemInternalSignupInvite({ inviteToken, fullName = null 
   }
 
   return data;
+}
+
+export async function internalProcessSyncJobs(limit = 25) {
+  const { data, error } = await supabase.rpc("internal_process_sync_jobs", {
+    p_limit: limit,
+  });
+  if (error) {
+    throw new Error(`Sync queue processing failed: ${error.message}`);
+  }
+  return data;
+}
+
+export async function internalGetSyncQueueSummary() {
+  const { data, error } = await supabase.rpc("internal_get_sync_queue_summary");
+  if (error) {
+    throw new Error(`Sync queue summary failed: ${error.message}`);
+  }
+  return data || {};
 }

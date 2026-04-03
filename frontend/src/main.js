@@ -1,20 +1,25 @@
 import {
   completePortalSignup,
   getCurrentSession,
+  getMyDashboardResources,
+  getInternalPortalContext,
   getLatestSubmissionPayload,
   getMyPortalContext,
   getOnboardingSnapshot,
   listMyCommunities,
   listTaskStates,
   onAuthStateChange,
+  requestPasswordReset,
   searchCompanies,
   setMyActiveCommunity,
   signInUser,
   signOutUser,
   signUpUser,
   submitIntake,
+  uploadBrandAssets,
   upsertTaskState,
 } from "./api.js";
+import { escapeHtml, sanitizeUrl } from "./utils/sanitize.js";
 
 const STAGE_SEQUENCE = [
   "contract_signed",
@@ -33,11 +38,11 @@ const STAGE_COPY = {
   },
   intake_form: {
     title: "Step 2 of 7 — Complete Your Intake Questionnaire",
-    text: "Fill out all sections below so we can start building your campaigns. After submission, you will move to the dedicated Account Access step.",
+    text: "Fill out all sections below so we can start building your campaigns. After submission, use Continue Onboarding to grant platform access.",
   },
   account_access: {
     title: "Step 3 of 7 — Grant Admin Access to Your Platforms",
-    text: "Questionnaire received. Continue to the dedicated Account Access page to complete platform invites.",
+    text: "Questionnaire received. Use Continue Onboarding to finish platform invite access.",
   },
   creative_kickoff: {
     title: "Step 4 of 7 — Creative Kickoff",
@@ -89,6 +94,7 @@ const PLATFORM_LABEL_TO_CODE = {
 };
 
 const PENDING_SIGNUP_KEY = "p11_pending_signup";
+const VIEW_PREF_KEY = "p11_dashboard_view";
 
 const state = {
   session: null,
@@ -102,7 +108,29 @@ const state = {
   },
   switchingCommunity: false,
   searchTimers: {},
+  dashboardResources: { assignments: [], links: [] },
+  submissionAttemptKey: null,
 };
+
+const DEFAULT_TEAM_ASSIGNMENTS = [
+  "Account Manager",
+  "Project Manager",
+  "Digital Marketing Lead",
+  "Creative Lead",
+  "Analytics / Reporting",
+];
+
+const DEFAULT_QUICK_LINKS = [
+  { label: "Accelo Project", systemCode: "accelo_project" },
+  { label: "Basecamp Project Page", systemCode: "basecamp_project" },
+  { label: "Dropbox Creative Folder", systemCode: "dropbox_creative_folder" },
+  { label: "Google Drive Campaign Sheet", systemCode: "google_drive_campaign_sheet" },
+  {
+    label: "Softr Client Portal",
+    systemCode: "softr_client_portal",
+    defaultUrl: "https://clients.p11.com",
+  },
+];
 
 function normalizeLabel(value) {
   return value.replace(/\*/g, "").replace(/\s+/g, " ").trim().toLowerCase();
@@ -351,18 +379,23 @@ function applyTaskRowState(taskRow, isComplete) {
   const text = taskRow.querySelector(".task-text");
   if (checkbox) checkbox.checked = Boolean(isComplete);
   if (text) text.classList.toggle("done", Boolean(isComplete));
+  updateInternalSnapshotStats();
 }
 
-function deriveTaskRowKey(taskRow, index) {
+function deriveTaskRowKey(taskRow) {
   const groupCode = taskRow.closest(".task-group")?.dataset?.grp || "all";
-  const taskText = taskRow.querySelector(".task-text")?.textContent?.trim() || `task_${index}`;
+  const explicitTaskId = taskRow.dataset.taskId?.trim();
+  if (explicitTaskId) return explicitTaskId;
+  const taskText = taskRow.querySelector(".task-text")?.textContent?.trim() || "task";
+  const owner = taskRow.querySelector(".badge")?.textContent?.trim() || "owner";
   const stableText = slugify(taskText).slice(0, 80);
-  return `${groupCode}__${stableText}__${index}`;
+  const stableOwner = slugify(owner).slice(0, 20);
+  return `${groupCode}__${stableText}__${stableOwner}`;
 }
 
 function initializeTaskRows() {
-  document.querySelectorAll(".task-row").forEach((taskRow, index) => {
-    const taskKey = deriveTaskRowKey(taskRow, index);
+  document.querySelectorAll(".task-row").forEach((taskRow) => {
+    const taskKey = deriveTaskRowKey(taskRow);
     const groupCode = taskRow.closest(".task-group")?.dataset?.grp || "all";
     const checkbox = taskRow.querySelector(".task-cb");
     if (checkbox && !("defaultChecked" in taskRow.dataset)) {
@@ -372,6 +405,7 @@ function initializeTaskRows() {
     taskRow.dataset.groupCode = groupCode;
     applyTaskRowState(taskRow, taskRow.dataset.defaultChecked === "true");
   });
+  updateInternalSnapshotStats();
 }
 
 function resetTaskRowsToBase() {
@@ -398,7 +432,7 @@ async function persistTaskCheckbox(taskRow, checked) {
     });
   } catch (error) {
     console.error(error);
-    alert(`Unable to persist task update: ${error.message}`);
+    setFormStatus(`Unable to save task update: ${error.message}`, "error");
   }
 }
 
@@ -414,17 +448,26 @@ function initializeTaskSyncHandlers() {
 }
 
 async function loadPersistedTaskStates() {
-  resetTaskRowsToBase();
-  const states = await listTaskStates();
-  if (!states.length) return;
+  try {
+    resetTaskRowsToBase();
+    const states = await listTaskStates();
+    if (!states.length) {
+      updateInternalSnapshotStats();
+      return;
+    }
 
-  const stateByKey = new Map(states.map((state) => [state.task_key, state]));
-  document.querySelectorAll(".task-row").forEach((taskRow) => {
-    const taskKey = taskRow.dataset.taskKey;
-    if (!taskKey || !stateByKey.has(taskKey)) return;
-    const state = stateByKey.get(taskKey);
-    applyTaskRowState(taskRow, Boolean(state.is_complete));
-  });
+    const stateByKey = new Map(states.map((state) => [state.task_key, state]));
+    document.querySelectorAll(".task-row").forEach((taskRow) => {
+      const taskKey = taskRow.dataset.taskKey;
+      if (!taskKey || !stateByKey.has(taskKey)) return;
+      const rowState = stateByKey.get(taskKey);
+      applyTaskRowState(taskRow, Boolean(rowState.is_complete));
+    });
+    updateInternalSnapshotStats();
+  } catch (error) {
+    console.warn("Unable to load saved task states:", error.message);
+    updateInternalSnapshotStats();
+  }
 }
 
 function formatDate(dateValue) {
@@ -508,6 +551,42 @@ function updateActionItems(stageCode) {
   );
 }
 
+function updateInternalSnapshotStats() {
+  const stagesCompleteEl = document.getElementById("snapshotStagesComplete");
+  const awaitingClientEl = document.getElementById("snapshotAwaitingClient");
+  const openP11TasksEl = document.getElementById("snapshotOpenP11Tasks");
+  const completedTasksEl = document.getElementById("snapshotCompletedTasks");
+
+  const stageIndex = Math.max(0, STAGE_SEQUENCE.indexOf(state.currentStageCode));
+  const stageCompleteLabel = `${stageIndex + 1}/${STAGE_SEQUENCE.length}`;
+  if (stagesCompleteEl) stagesCompleteEl.textContent = stageCompleteLabel;
+
+  const rows = Array.from(document.querySelectorAll(".task-row"));
+  let awaitingClient = 0;
+  let openP11Tasks = 0;
+  let completedTasks = 0;
+
+  rows.forEach((row) => {
+    const checkbox = row.querySelector(".task-cb");
+    const isChecked = Boolean(checkbox?.checked);
+    if (isChecked) completedTasks += 1;
+
+    const hasAwaitingClientMarker = Boolean(row.querySelector(".task-text em"));
+    if (hasAwaitingClientMarker && !isChecked) {
+      awaitingClient += 1;
+    }
+
+    const isClientOwned = row.querySelector(".badge")?.classList.contains("b-client");
+    if (!isClientOwned && !isChecked) {
+      openP11Tasks += 1;
+    }
+  });
+
+  if (awaitingClientEl) awaitingClientEl.textContent = String(awaitingClient);
+  if (openP11TasksEl) openP11TasksEl.textContent = String(openP11Tasks);
+  if (completedTasksEl) completedTasksEl.textContent = String(completedTasks);
+}
+
 function navigateToStageSection(stageCode) {
   if (stageCode === "intake_form") {
     document.querySelector(".q-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -520,6 +599,12 @@ function navigateToStageSection(stageCode) {
   }
 
   document.querySelector(".tracker-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updateContinueOnboardingCta(stageCode) {
+  const continueButton = document.getElementById("continueOnboardingBtn");
+  if (!continueButton) return;
+  continueButton.hidden = stageCode !== "account_access";
 }
 
 function updateStageNavigationInteractivity(stageCode) {
@@ -585,12 +670,14 @@ function applyStage(stageCode) {
   const stepText = document.getElementById("stepText");
   if (stepTitle) stepTitle.textContent = copy.title;
   if (stepText) stepText.textContent = copy.text;
+  updateContinueOnboardingCta(normalizedStage);
 
   document.querySelectorAll(".step-pill").forEach((pill) => {
     pill.textContent = `Step ${idx + 1} of ${STAGE_SEQUENCE.length}`;
   });
   updateActionItems(normalizedStage);
   updateStageNavigationInteractivity(normalizedStage);
+  updateInternalSnapshotStats();
 }
 
 function applySnapshot(snapshot) {
@@ -872,6 +959,11 @@ async function hydrateLatestSubmissionForActiveCommunity() {
 function updateTeamToggleAccess(context) {
   const isInternalRole = ["internal", "admin"].includes(context?.portal_role || "");
   document.body.classList.toggle("internal-user", isInternalRole);
+  const homeLink = document.getElementById("dashboardHomeLink");
+  if (homeLink) {
+    homeLink.setAttribute("href", isInternalRole ? "/internal.html" : "/client-home.html");
+    homeLink.classList.toggle("internal-home-link-active", isInternalRole);
+  }
 
   const teamToggleBtn = document.getElementById("teamToggleBtn");
   if (teamToggleBtn) {
@@ -881,6 +973,77 @@ function updateTeamToggleAccess(context) {
   if (!isInternalRole) {
     setView("client");
   }
+}
+
+function renderTeamAssignments(assignments = []) {
+  const list = document.getElementById("teamAssignmentsList");
+  if (!list) return;
+
+  const byRole = new Map();
+  assignments
+    .filter((row) => row?.is_active !== false)
+    .forEach((row) => {
+      const key = String(row?.role_code || "").trim().toLowerCase();
+      if (key && !byRole.has(key)) byRole.set(key, row);
+    });
+
+  const roleCodeForLabel = {
+    "Account Manager": "account_manager",
+    "Project Manager": "project_manager",
+    "Digital Marketing Lead": "digital_marketing_lead",
+    "Creative Lead": "creative_lead",
+    "Analytics / Reporting": "analytics_reporting",
+  };
+
+  list.innerHTML = DEFAULT_TEAM_ASSIGNMENTS.map((label) => {
+    const roleCode = roleCodeForLabel[label];
+    const row = byRole.get(roleCode);
+    const assignee = row?.staff_name || row?.staff_email || "Unassigned";
+    const dotClass = row ? "cl-done" : "cl-pend";
+    const dotText = row ? "✓" : "·";
+    return `<div class="cl-row">
+      <div class="cl-dot ${dotClass}">${dotText}</div>
+      <span class="cl-text">${escapeHtml(label)}</span>
+      <span class="cl-meta">${escapeHtml(assignee)}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderQuickLinks(links = []) {
+  const list = document.getElementById("quickLinksList");
+  if (!list) return;
+  const byCode = new Map(
+    links.map((row) => [String(row?.system_code || "").trim().toLowerCase(), row])
+  );
+
+  list.innerHTML = DEFAULT_QUICK_LINKS.map((item) => {
+    const row = byCode.get(item.systemCode);
+    const rawUrl = row?.external_url || item.defaultUrl || null;
+    const safeUrl = sanitizeUrl(rawUrl);
+    const linkMarkup = safeUrl
+      ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--red); font-weight:700;">Open →</a>`
+      : `<span style="color:var(--gray-light); font-weight:700;">Not linked</span>`;
+    return `<div class="cl-row">
+      <div class="cl-dot ${safeUrl ? "cl-done" : "cl-pend"}">${safeUrl ? "✓" : "·"}</div>
+      <span class="cl-text">${escapeHtml(item.label)}</span>
+      <span class="cl-meta">${linkMarkup}</span>
+    </div>`;
+  }).join("");
+}
+
+async function loadDashboardResources() {
+  try {
+    const resources = await getMyDashboardResources();
+    state.dashboardResources = {
+      assignments: Array.isArray(resources?.assignments) ? resources.assignments : [],
+      links: Array.isArray(resources?.links) ? resources.links : [],
+    };
+  } catch (error) {
+    console.warn("Unable to load dashboard resources:", error.message);
+    state.dashboardResources = { assignments: [], links: [] };
+  }
+  renderTeamAssignments(state.dashboardResources.assignments);
+  renderQuickLinks(state.dashboardResources.links);
 }
 
 function buildCommunityOptionLabel(community) {
@@ -961,6 +1124,7 @@ async function switchActiveCommunity(onboardingClientId) {
     applySnapshot(context);
     updateSessionUi(state.session, context);
     updateTeamToggleAccess(context);
+    await loadDashboardResources();
     await refreshCommunitySwitcher(context.onboarding_client_id);
     await loadPersistedTaskStates();
     await hydrateLatestSubmissionForActiveCommunity();
@@ -982,7 +1146,7 @@ function initializeCommunitySwitcher() {
       await switchActiveCommunity(onboardingClientId);
     } catch (error) {
       console.error(error);
-      alert(`Unable to switch communities: ${error.message}`);
+      setFormStatus(`Unable to switch communities: ${error.message}`, "error");
       renderCommunitySwitcher(
         state.communities,
         state.portalContext?.onboarding_client_id || null
@@ -991,7 +1155,19 @@ function initializeCommunitySwitcher() {
   });
 }
 
-function buildPayload() {
+function getBrandAssetShareLink() {
+  return (
+    getFieldValueByLabel("Or paste a Dropbox / Google Drive shareable link") || null
+  );
+}
+
+function getSelectedBrandAssetFiles() {
+  const input = document.getElementById("assetInput");
+  if (!input?.files?.length) return [];
+  return Array.from(input.files);
+}
+
+function buildPayload({ uploadedAssets = [], submissionKey = null } = {}) {
   const communityName = getFieldValueByLabel("Community Name");
   const communityType = getFieldValueByLabel("Community Type");
   const communityAddress = getFieldValueByLabel("Community Address");
@@ -1022,6 +1198,7 @@ function buildPayload() {
 
   const selectedCompanyName = state.portalContext?.company_name || null;
   const selectedCompanyDirectoryId = state.portalContext?.company_directory_id || null;
+  const brandAssetShareLink = getBrandAssetShareLink();
 
   const payload = {
     community_name: communityName,
@@ -1043,6 +1220,9 @@ function buildPayload() {
     selected_services: selectedServices.map((s) => s.service_code),
     service_configs: serviceConfigs,
     platform_access: platformAccess,
+    uploaded_assets: uploadedAssets,
+    brand_asset_share_link: brandAssetShareLink,
+    submission_key: submissionKey,
     company_directory_id: selectedCompanyDirectoryId,
     company_name: selectedCompanyName,
     all_fields: collectAllLabeledFields(),
@@ -1057,6 +1237,40 @@ function setAuthMessage(targetId, message, kind = "") {
   if (!target) return;
   target.className = `auth-message${kind ? ` ${kind}` : ""}`;
   target.textContent = message || "";
+}
+
+function setFormStatus(message = "", kind = "") {
+  const target = document.getElementById("submitStatus");
+  if (!target) return;
+  target.className = `auth-message${kind ? ` ${kind}` : ""}`;
+  target.textContent = message || "";
+}
+
+function clearRequiredFieldErrors() {
+  document.querySelectorAll(".rq").forEach((field) => {
+    field.style.borderColor = "";
+    field.removeAttribute("aria-invalid");
+  });
+}
+
+function findMissingRequiredFields() {
+  const missing = [];
+  document.querySelectorAll(".rq").forEach((field) => {
+    const value = field.value?.trim?.() || "";
+    if (value) return;
+    const label =
+      field.closest(".fg")?.querySelector(".fl")?.textContent?.replace("*", "").trim() ||
+      "Required field";
+    missing.push({ field, label });
+  });
+  return missing;
+}
+
+function createSubmissionAttemptKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `submit_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 }
 
 function savePendingSignup(data) {
@@ -1109,31 +1323,59 @@ function renderCompanyResults(prefix, companies, query) {
   const results = document.getElementById(`${prefix}CompanyResults`);
   if (!results) return;
 
-  if (!query || !companies.length) {
+  if (!query || !query.trim()) {
     results.classList.remove("show");
     results.innerHTML = "";
     return;
   }
 
-  results.innerHTML = companies
-    .map(
-      (company) => `
-        <div class="company-result" data-prefix="${prefix}" data-company-id="${company.company_directory_id}" data-company-name="${company.company_name}">
-          <div class="company-name">${company.company_name}</div>
-          <div class="company-meta">Score: ${(company.score || 0).toFixed(2)}${company.public_company_id ? " · Existing data lake company" : ""}</div>
-        </div>
-      `
-    )
-    .join("");
+  results.innerHTML = "";
+  const fragment = document.createDocumentFragment();
 
-  if (query.trim()) {
-    results.innerHTML += `
-      <div class="company-result" data-prefix="${prefix}" data-company-id="" data-company-name="${query.trim()}">
-        <div class="company-name">Use "${query.trim()}" as a new company</div>
-        <div class="company-meta">No exact match selected. This will create a new company directory record if a close fuzzy match is not found.</div>
-      </div>
-    `;
-  }
+  companies.forEach((company) => {
+    const row = document.createElement("div");
+    row.className = "company-result";
+    row.dataset.prefix = prefix;
+    row.dataset.companyId = company.company_directory_id
+      ? String(company.company_directory_id)
+      : "";
+    row.dataset.companyName = company.company_name || "";
+
+    const name = document.createElement("div");
+    name.className = "company-name";
+    name.textContent = company.company_name || "Unknown Company";
+
+    const meta = document.createElement("div");
+    meta.className = "company-meta";
+    const score = Number(company.score || 0).toFixed(2);
+    meta.textContent = `Score: ${score}${
+      company.public_company_id ? " · Existing data lake company" : ""
+    }`;
+
+    row.appendChild(name);
+    row.appendChild(meta);
+    fragment.appendChild(row);
+  });
+
+  const row = document.createElement("div");
+  row.className = "company-result";
+  row.dataset.prefix = prefix;
+  row.dataset.companyId = "";
+  row.dataset.companyName = query.trim();
+
+  const name = document.createElement("div");
+  name.className = "company-name";
+  name.textContent = `Use "${query.trim()}" as a new company`;
+  const meta = document.createElement("div");
+  meta.className = "company-meta";
+  meta.textContent =
+    "No exact match selected. This will create a new company directory record if a close fuzzy match is not found.";
+
+  row.appendChild(name);
+  row.appendChild(meta);
+  fragment.appendChild(row);
+
+  results.appendChild(fragment);
 
   results.classList.add("show");
 
@@ -1168,7 +1410,7 @@ function setupCompanySearch(prefix) {
     clearTimeout(state.searchTimers[prefix]);
 
     if (query.length < 2) {
-      renderCompanyResults(prefix, [], query);
+      renderCompanyResults(prefix, [], "");
       return;
     }
 
@@ -1219,6 +1461,9 @@ function buildAuthMarkup() {
           </div>
           <button class="auth-submit" id="loginSubmit" type="submit">Log In</button>
           <div class="auth-message" id="loginMessage"></div>
+          <div class="auth-link">
+            <a href="#" id="loginForgotBtn">Forgot your password?</a>
+          </div>
         </form>
 
         <form class="auth-form" data-form="signup" id="signupForm">
@@ -1290,6 +1535,7 @@ function renderAuthRoot() {
   loginForm?.addEventListener("submit", handleLoginSubmit);
   signupForm?.addEventListener("submit", handleSignupSubmit);
   completeForm?.addEventListener("submit", handleCompleteSubmit);
+  document.getElementById("loginForgotBtn")?.addEventListener("click", handleForgotPassword);
 }
 
 function showCompleteForm(prefill = {}) {
@@ -1334,36 +1580,54 @@ async function finalizeSignupLink(signupData) {
 
 async function hydrateAuthenticatedApp(session) {
   state.session = session;
-  let context = await getMyPortalContext();
+  try {
+    const internalContext = await getInternalPortalContext().catch(() => null);
+    let context = await getMyPortalContext();
 
-  if (!context) {
-    const pending = loadPendingSignup();
-    if (pending) {
-      await finalizeSignupLink(pending);
-      context = await getMyPortalContext();
+    if (!context) {
+      if (internalContext) {
+        window.location.replace("/internal.html");
+        return;
+      }
+      const pending = loadPendingSignup();
+      if (pending) {
+        await finalizeSignupLink(pending);
+        context = await getMyPortalContext();
+      }
     }
-  }
 
-  if (!context) {
+    if (!context) {
+      showAuthRoot();
+      renderAuthRoot();
+      showCompleteForm({
+        fullName: session.user.user_metadata?.full_name || "",
+        email: session.user.email || "",
+      });
+      updateSessionUi(session, null);
+      return;
+    }
+
+    state.portalContext = context;
+    hideAuthRoot();
+    updateSessionUi(session, context);
+    updateTeamToggleAccess(context);
+    await loadDashboardResources();
+    state.latestSubmissionPayload = null;
+    applySnapshot(context);
+    await refreshCommunitySwitcher(context.onboarding_client_id);
+    await loadPersistedTaskStates();
+    await hydrateLatestSubmissionForActiveCommunity();
+  } catch (error) {
+    console.error("Unable to hydrate authenticated app:", error);
     showAuthRoot();
     renderAuthRoot();
-    showCompleteForm({
-      fullName: session.user.user_metadata?.full_name || "",
-      email: session.user.email || "",
-    });
     updateSessionUi(session, null);
-    return;
+    setAuthMessage(
+      "loginMessage",
+      `Unable to load your dashboard right now: ${error.message}`,
+      "error"
+    );
   }
-
-  state.portalContext = context;
-  hideAuthRoot();
-  updateSessionUi(session, context);
-  updateTeamToggleAccess(context);
-  state.latestSubmissionPayload = null;
-  applySnapshot(context);
-  await refreshCommunitySwitcher(context.onboarding_client_id);
-  await loadPersistedTaskStates();
-  await hydrateLatestSubmissionForActiveCommunity();
 }
 
 async function handleLoginSubmit(event) {
@@ -1380,6 +1644,30 @@ async function handleLoginSubmit(event) {
     setAuthMessage("loginMessage", error.message, "error");
   } finally {
     submitButton.disabled = false;
+  }
+}
+
+async function handleForgotPassword(event) {
+  event.preventDefault();
+  const email = document.getElementById("loginEmail")?.value?.trim();
+  if (!email) {
+    setAuthMessage("loginMessage", "Enter your email above, then click forgot password.", "error");
+    return;
+  }
+
+  try {
+    setAuthMessage("loginMessage", "", "");
+    await requestPasswordReset({
+      email,
+      redirectTo: `${window.location.origin}/p11-onboarding-dashboard.html`,
+    });
+    setAuthMessage(
+      "loginMessage",
+      "Password reset email sent. Check your inbox for the reset link.",
+      "success"
+    );
+  } catch (error) {
+    setAuthMessage("loginMessage", error.message, "error");
   }
 }
 
@@ -1425,6 +1713,10 @@ async function handleSignupSubmit(event) {
       if (loginEmail) loginEmail.value = email;
       return;
     }
+
+    await finalizeSignupLink(pending);
+    await hydrateAuthenticatedApp(result.session);
+    setAuthMessage("signupMessage", "Account created and linked successfully.", "success");
   } catch (error) {
     clearPendingSignup();
     setAuthMessage("signupMessage", error.message, "error");
@@ -1485,7 +1777,7 @@ async function bootstrapAuth() {
     try {
       await signOutUser();
     } catch (error) {
-      alert(error.message);
+      setFormStatus(error.message, "error");
     }
   });
 
@@ -1521,10 +1813,43 @@ async function bootstrapAuth() {
 function setView(view) {
   const clientToggleBtn = document.getElementById("clientToggleBtn");
   const teamToggleBtn = document.getElementById("teamToggleBtn");
-  if (clientToggleBtn) clientToggleBtn.classList.add("active");
-  if (teamToggleBtn) teamToggleBtn.classList.remove("active");
-  // Client portal pages should always stay in client mode.
-  document.body.classList.remove("int");
+  const normalizedView =
+    view === "team" || view === "internal" ? "internal" : "client";
+  if (clientToggleBtn) {
+    clientToggleBtn.classList.toggle("active", normalizedView === "client");
+  }
+  if (teamToggleBtn) {
+    teamToggleBtn.classList.toggle("active", normalizedView === "internal");
+  }
+  document.body.classList.toggle("int", normalizedView === "internal");
+  try {
+    sessionStorage.setItem(VIEW_PREF_KEY, normalizedView);
+  } catch {
+    // ignore session storage failures
+  }
+}
+
+function initializeViewToggle() {
+  const clientToggleBtn = document.getElementById("clientToggleBtn");
+  const teamToggleBtn = document.getElementById("teamToggleBtn");
+
+  if (clientToggleBtn && clientToggleBtn.dataset.bound !== "true") {
+    clientToggleBtn.dataset.bound = "true";
+    clientToggleBtn.addEventListener("click", () => setView("client"));
+  }
+  if (teamToggleBtn && teamToggleBtn.dataset.bound !== "true") {
+    teamToggleBtn.dataset.bound = "true";
+    teamToggleBtn.addEventListener("click", () => setView("internal"));
+  }
+
+  try {
+    const saved = sessionStorage.getItem(VIEW_PREF_KEY);
+    if (saved === "internal" || saved === "client") {
+      setView(saved);
+    }
+  } catch {
+    // ignore session storage failures
+  }
 }
 
 function toggleAcc(element) {
@@ -1570,41 +1895,104 @@ function setGoLive(value) {
 }
 
 function showFiles(input) {
+  const fileList = document.getElementById("fileList");
+  if (!fileList) return;
+  fileList.innerHTML = "";
   if (!input.files.length) return;
-  let html =
-    '<div style="margin-top:8px; border:1px solid var(--border); border-radius:7px; overflow:hidden;">';
-  Array.from(input.files).forEach((file) => {
-    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;">
-      <span>📄</span><span style="flex:1;color:var(--charcoal);font-weight:600;">${file.name}</span>
-      <span style="color:var(--gray-light)">${(file.size / 1024 / 1024).toFixed(1)} MB</span></div>`;
+
+  const wrap = document.createElement("div");
+  wrap.style.marginTop = "8px";
+  wrap.style.border = "1px solid var(--border)";
+  wrap.style.borderRadius = "7px";
+  wrap.style.overflow = "hidden";
+
+  Array.from(input.files).forEach((file, index, arr) => {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "10px";
+    row.style.padding = "8px 12px";
+    row.style.fontSize = "12px";
+    if (index < arr.length - 1) {
+      row.style.borderBottom = "1px solid var(--border)";
+    }
+
+    const icon = document.createElement("span");
+    icon.textContent = "📄";
+    const name = document.createElement("span");
+    name.style.flex = "1";
+    name.style.color = "var(--charcoal)";
+    name.style.fontWeight = "600";
+    name.textContent = file.name;
+    const size = document.createElement("span");
+    size.style.color = "var(--gray-light)";
+    size.textContent = `${(file.size / 1024 / 1024).toFixed(1)} MB`;
+
+    row.appendChild(icon);
+    row.appendChild(name);
+    row.appendChild(size);
+    wrap.appendChild(row);
   });
-  html += "</div>";
-  document.getElementById("fileList").innerHTML = html;
+  fileList.appendChild(wrap);
 }
 
 async function submitForm() {
+  clearRequiredFieldErrors();
+  setFormStatus("", "");
   if (!state.session) {
-    alert("Please log in before submitting your questionnaire.");
+    setFormStatus("Please log in before submitting your questionnaire.", "error");
     showAuthRoot();
+    return;
+  }
+
+  const missingRequired = findMissingRequiredFields();
+  if (missingRequired.length) {
+    missingRequired.forEach(({ field }) => {
+      field.style.borderColor = "var(--red)";
+      field.setAttribute("aria-invalid", "true");
+    });
+    missingRequired[0]?.field?.focus();
+    const missingLabels = missingRequired.map(({ label }) => label).slice(0, 5).join(", ");
+    setFormStatus(`Please complete all required fields: ${missingLabels}.`, "error");
     return;
   }
 
   const communityName = getFieldValueByLabel("Community Name");
   if (!communityName) {
-    alert("Please enter the Community Name before submitting.");
+    setFormStatus("Please enter the Community Name before submitting.", "error");
     return;
   }
 
   const submitButton = document.querySelector(".submit-btn");
   const originalLabel = submitButton?.textContent || "Submit";
+  if (!state.submissionAttemptKey) {
+    state.submissionAttemptKey = createSubmissionAttemptKey();
+  }
 
   try {
     if (submitButton) {
       submitButton.disabled = true;
       submitButton.textContent = "Submitting...";
     }
+    setFormStatus("Submitting your intake...", "");
 
-    const payload = buildPayload();
+    const brandAssetFiles = getSelectedBrandAssetFiles();
+    let uploadedAssets = [];
+    if (brandAssetFiles.length && state.portalContext?.onboarding_client_id) {
+      if (submitButton) submitButton.textContent = "Uploading assets...";
+      setFormStatus("Uploading brand assets...", "");
+      uploadedAssets = await uploadBrandAssets({
+        onboardingClientId: state.portalContext.onboarding_client_id,
+        files: brandAssetFiles,
+      });
+      if (submitButton) submitButton.textContent = "Submitting...";
+      setFormStatus("Assets uploaded. Finalizing submission...", "");
+    }
+
+    const payload = buildPayload({
+      uploadedAssets,
+      submissionKey: state.submissionAttemptKey,
+    });
     state.latestSubmissionPayload = payload;
     const result = await submitIntake(payload);
     if (result?.onboarding_client_id) {
@@ -1631,13 +2019,16 @@ async function submitForm() {
       displayCompany.textContent = state.portalContext.company_name;
     }
 
-    alert(
-      `Submitted successfully.\n\nReference ID: ${result?.onboarding_client_id ?? "n/a"}\nNext step: Continue to Account Access.`
+    setFormStatus(
+      `Submitted successfully. Reference ID: ${
+        result?.onboarding_client_id ?? "n/a"
+      }. You can now select Continue Onboarding to finish platform access.`,
+      "success"
     );
-    window.location.href = "/p11-onboarding-account-access.html";
+    state.submissionAttemptKey = null;
   } catch (error) {
     console.error(error);
-    alert(`Submission failed: ${error.message}`);
+    setFormStatus(`Submission failed: ${error.message}`, "error");
   } finally {
     if (submitButton) {
       submitButton.disabled = false;
@@ -1697,12 +2088,16 @@ function maybePrepareForNewCommunity() {
   }
 
   window.history.replaceState({}, "", window.location.pathname);
-  alert(
-    "To add another community, enter a different Community Name and submit the intake form."
+  setFormStatus(
+    "To add another community, enter a different Community Name and submit the intake form.",
+    ""
   );
 }
 
 function initialize() {
+  initializeViewToggle();
+  renderTeamAssignments([]);
+  renderQuickLinks([]);
   initializeServiceChipMetadata();
   initializeAccessVisuals();
   initializeStageNavigation();

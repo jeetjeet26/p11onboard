@@ -75,6 +75,7 @@
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
+        align-items: center;
       }
 
       .nav a {
@@ -90,6 +91,35 @@
       }
 
       .nav a.active {
+        background: var(--red);
+        border-color: var(--red);
+      }
+      .nav .nav-logout {
+        display: none;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: transparent;
+        color: #fff;
+        border-radius: 999px;
+        padding: 6px 11px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+      }
+      .nav .nav-logout.show {
+        display: inline-flex;
+      }
+      .nav .nav-logout:hover {
+        border-color: rgba(255, 255, 255, 0.6);
+      }
+      .nav a.internal-only-nav {
+        display: none;
+      }
+      body.internal-user .nav a.internal-only-nav {
+        display: inline-flex;
+      }
+      body.internal-user .nav a.home-link {
         background: var(--red);
         border-color: var(--red);
       }
@@ -200,22 +230,6 @@
         align-items: center;
         gap: 10px;
         flex-wrap: wrap;
-      }
-
-      .session {
-        margin-left: auto;
-        font-size: 12px;
-        color: var(--gray);
-      }
-
-      .logout {
-        border: 1px solid var(--border);
-        background: white;
-        border-radius: 7px;
-        padding: 8px 12px;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
       }
 
       .summary {
@@ -396,11 +410,9 @@
         </div>
       </div>
       <nav class="nav" aria-label="App Navigation">
-        <a href="/">Home</a>
-        <a class="active" href="/client-home.html">Client Home</a>
-        <a href="/p11-onboarding-dashboard.html">Dashboard</a>
-        <a href="/p11-onboarding-account-access.html">Account Access</a>
-        <a href="/internal.html">Internal Portal</a>
+        <a class="active home-link" href="/client-home.html">Home</a>
+        <a class="internal-only-nav" href="/internal.html">Internal Portal</a>
+        <button class="nav-logout" id="logoutBtn" type="button">Log Out</button>
       </nav>
     </header>
 
@@ -420,6 +432,7 @@
           <button class="submit-btn" id="clientLoginSubmit" type="submit">Log In</button>
           <div class="auth-message" id="clientAuthMessage"></div>
           <div class="auth-link">
+            <a href="#" id="clientForgotPassword">Forgot your password?</a><br />
             Need an account? <a href="/p11-onboarding-dashboard.html">Use the dashboard signup flow</a>.
           </div>
         </form>
@@ -428,9 +441,6 @@
       <section class="shell" id="clientShell">
         <div class="toolbar">
           <button class="submit-btn" id="addCommunityBtn" type="button">Add Community</button>
-          <button class="submit-btn" id="refreshBtn" type="button">Refresh</button>
-          <button class="logout" id="logoutBtn" type="button">Log Out</button>
-          <span class="session" id="sessionInfo"></span>
         </div>
 
         <div class="summary">
@@ -464,7 +474,7 @@
           <div class="stat"><div class="label">Go Live</div><div class="value" id="goLiveCount">0</div></div>
         </div>
 
-        <p class="helper">Click any community row to open its onboarding workspace.</p>
+        <p class="helper">Select a community row to continue or view onboarding.</p>
 
         <div class="table-wrap">
           <table>

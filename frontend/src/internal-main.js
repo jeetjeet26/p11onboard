@@ -1,9 +1,11 @@
 import {
   createInternalSignupInvite,
   getCurrentSession,
+  internalGetSyncQueueSummary,
   getInternalPortalContext,
   internalListOnboardingOverview,
   onAuthStateChange,
+  requestPasswordReset,
   setMyActiveCommunity,
   signInUser,
   signOutUser,
@@ -56,16 +58,26 @@ function setInviteMessage(message = "", kind = "") {
   target.textContent = message;
 }
 
+function setSyncStatus(message = "", kind = "") {
+  const target = document.getElementById("syncQueueStatus");
+  if (!target) return;
+  target.className = `sync-status${kind ? ` ${kind}` : ""}`;
+  target.textContent = message;
+}
+
 function showLoggedOutView() {
   document.getElementById("authCard")?.classList.remove("hide");
   document.getElementById("internalShell")?.classList.remove("show");
+  document.body.classList.remove("auth-pending");
   setAuthMessage("");
   setInviteMessage("");
+  setSyncStatus("");
 }
 
 function showLoggedInView() {
   document.getElementById("authCard")?.classList.add("hide");
   document.getElementById("internalShell")?.classList.add("show");
+  document.body.classList.remove("auth-pending");
 }
 
 function updateInviteAccess(context) {
@@ -111,7 +123,7 @@ function renderOverview(rows) {
   if (!rows.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" style="color:#767676;">No onboarding communities matched your filters.</td>
+        <td colspan="8" style="color:#767676;">No onboarding communities matched your filters.</td>
       </tr>
     `;
     updateStats(rows);
@@ -135,6 +147,8 @@ function renderOverview(rows) {
         <td><span class="pill stage">${escapeHtml(toStageLabel(row.current_stage))}</span></td>
         <td><span class="pill ${escapeHtml(row.status || "draft")}">${escapeHtml(row.status || "draft")}</span></td>
         <td>${escapeHtml(formatDate(row.target_go_live_at))}</td>
+        <td>${escapeHtml(String(row.required_platform_outstanding_count ?? 0))}</td>
+        <td>${escapeHtml(String(row.queued_sync_jobs ?? 0))}</td>
         <td>${escapeHtml(row.last_submitted_at ? new Date(row.last_submitted_at).toLocaleString() : "Not submitted")}</td>
       </tr>
     `
@@ -159,7 +173,7 @@ async function openCommunityDashboard(onboardingClientId, currentStage) {
     window.location.href = destination;
   } catch (error) {
     setTableLoadingState(null);
-    alert(`Unable to open community dashboard: ${error.message}`);
+    setSyncStatus(`Unable to open community dashboard: ${error.message}`, "error");
   }
 }
 
@@ -175,6 +189,21 @@ async function loadOverview() {
   renderOverview(rows);
 }
 
+async function refreshSyncQueueSummary() {
+  try {
+    const summary = await internalGetSyncQueueSummary();
+    const queued = Number(summary?.queued_count || 0);
+    const failed = Number(summary?.failed_count || 0);
+    const processed = Number(summary?.processed_count || 0);
+    setSyncStatus(
+      `Backend sync: ${queued} pending · ${failed} failed · ${processed} completed`,
+      failed > 0 ? "error" : ""
+    );
+  } catch (error) {
+    setSyncStatus(`Unable to read sync queue summary: ${error.message}`, "error");
+  }
+}
+
 function getInviteBaseUrl() {
   return `${window.location.origin}/internal-signup.html`;
 }
@@ -185,10 +214,16 @@ async function handleCreateInvite(event) {
   const email = document.getElementById("inviteEmail")?.value?.trim();
   const fullName = document.getElementById("inviteFullName")?.value?.trim() || null;
   const portalRole = document.getElementById("inviteRole")?.value || "internal";
+  const expiresHoursRaw = document.getElementById("inviteExpiresHours")?.value?.trim() || "";
+  const expiresInHours = expiresHoursRaw ? Number(expiresHoursRaw) : null;
   const linkOutput = document.getElementById("inviteLink");
 
   if (!email) {
     setInviteMessage("Invite email is required.", "error");
+    return;
+  }
+  if (expiresInHours !== null && (!Number.isFinite(expiresInHours) || expiresInHours < 1)) {
+    setInviteMessage("Invite expiry must be a positive number of hours.", "error");
     return;
   }
 
@@ -199,6 +234,7 @@ async function handleCreateInvite(event) {
       email,
       fullName,
       portalRole,
+      expiresInHours,
       inviteBaseUrl: getInviteBaseUrl(),
     });
     if (linkOutput) linkOutput.value = result?.invite_url || "";
@@ -234,7 +270,7 @@ async function hydrateInternal(session) {
   showLoggedInView();
   setSessionInfo(session, context);
   updateInviteAccess(context);
-  await loadOverview();
+  await Promise.all([loadOverview(), refreshSyncQueueSummary()]);
 }
 
 async function handleLoginSubmit(event) {
@@ -251,6 +287,24 @@ async function handleLoginSubmit(event) {
     setAuthMessage(error.message, "error");
   } finally {
     if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function handleForgotPassword(event) {
+  event.preventDefault();
+  const email = document.getElementById("internalEmail")?.value?.trim();
+  if (!email) {
+    setAuthMessage("Enter your email above, then click forgot password.", "error");
+    return;
+  }
+  try {
+    await requestPasswordReset({
+      email,
+      redirectTo: `${window.location.origin}/internal.html`,
+    });
+    setAuthMessage("Password reset email sent.", "success");
+  } catch (error) {
+    setAuthMessage(error.message, "error");
   }
 }
 
@@ -271,9 +325,9 @@ function bindHandlers() {
 
   document.getElementById("refreshBtn")?.addEventListener("click", async () => {
     try {
-      await loadOverview();
+      await Promise.all([loadOverview(), refreshSyncQueueSummary()]);
     } catch (error) {
-      alert(error.message);
+      setAuthMessage(error.message, "error");
     }
   });
 
@@ -281,9 +335,11 @@ function bindHandlers() {
     try {
       await signOutUser();
     } catch (error) {
-      alert(error.message);
+      setAuthMessage(error.message, "error");
     }
   });
+
+  document.getElementById("internalForgotPassword")?.addEventListener("click", handleForgotPassword);
 
   document.getElementById("inviteForm")?.addEventListener("submit", handleCreateInvite);
 

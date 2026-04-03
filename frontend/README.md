@@ -10,15 +10,23 @@ This folder contains the operational frontend wiring for the existing HTML proto
 
 ## Run locally
 
-From `/Users/jasjitgill/Desktop/onboard`:
+From the repository root:
 
 ```bash
-python3 -m http.server 8080
+npm install
+npm run dev
 ```
 
 Open:
 
-- `http://localhost:8080/p11-onboarding-dashboard.html`
+- `http://localhost:3000/p11-onboarding-dashboard.html`
+
+## Build + test
+
+```bash
+npm run test
+npm run build
+```
 
 ## Notes
 
@@ -27,3 +35,7 @@ Open:
 - Signup includes company search against the data lake and fuzzy matching for near matches.
 - Company membership is completed via authenticated RPCs and linked through `portal_user_company_access`.
 - Intake submission uses authenticated RPCs, not the old public token flow.
+- Supabase config must be provided via `window.__P11_CONFIG__` or Vite env vars:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+  - Optional: `VITE_BRAND_ASSET_BUCKET` (defaults to `onboarding-brand-assets`)
