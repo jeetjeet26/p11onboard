@@ -497,6 +497,11 @@ function deriveDisplayStage(stageCode, context = null, payload = null) {
   return normalized;
 }
 
+function getActionTurnLabel() {
+  const role = state.portalContext?.portal_role || "";
+  return ["internal", "admin"].includes(role) ? "Client turn" : "Your turn";
+}
+
 function setActionItemRowState(row, stateLabel) {
   if (!row) return;
   const dot = row.querySelector(".cl-dot");
@@ -520,7 +525,7 @@ function setActionItemRowState(row, stateLabel) {
     dot.classList.add("cl-now");
     dot.textContent = "!";
     meta.classList.add("now");
-    meta.textContent = "Your turn";
+    meta.textContent = getActionTurnLabel();
     return;
   }
 
