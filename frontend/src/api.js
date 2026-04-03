@@ -300,6 +300,77 @@ export async function internalListOnboardingOverview({ search = "", stage = null
   return Array.isArray(data) ? data : [];
 }
 
+export async function internalListClients({
+  search = "",
+  stage = null,
+  status = null,
+  limit = 100,
+  offset = 0,
+} = {}) {
+  const { data, error } = await supabase.rpc("internal_list_clients", {
+    p_search: search || null,
+    p_stage: stage,
+    p_status: status,
+    p_limit: limit,
+    p_offset: offset,
+  });
+
+  if (error) {
+    throw new Error(`Internal client list failed: ${error.message}`);
+  }
+
+  return data || { items: [], total_count: 0, limit, offset };
+}
+
+export async function internalGetClientDetail(onboardingClientId) {
+  const numericId = Number(onboardingClientId);
+  if (!numericId) {
+    throw new Error("Valid onboarding client ID is required.");
+  }
+
+  const { data, error } = await supabase.rpc("internal_get_client_detail", {
+    p_onboarding_client_id: numericId,
+  });
+
+  if (error) {
+    throw new Error(`Internal client detail failed: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function internalUpsertClientInfo(payload = {}) {
+  const { data, error } = await supabase.rpc("internal_upsert_client_info", {
+    p_onboarding_client_id: payload.onboardingClientId ?? null,
+    p_company_directory_id: payload.companyDirectoryId ?? null,
+    p_company_name: payload.companyName ?? null,
+    p_community_name: payload.communityName ?? null,
+    p_current_stage: payload.currentStage ?? null,
+    p_status: payload.status ?? null,
+    p_target_go_live_at: payload.targetGoLiveAt ?? null,
+    p_community_phone: payload.communityPhone ?? null,
+    p_community_email: payload.communityEmail ?? null,
+    p_hours_of_operation: payload.hoursOfOperation ?? null,
+    p_website_url: payload.websiteUrl ?? null,
+    p_property_type: payload.propertyType ?? null,
+    p_parent_company: payload.parentCompany ?? null,
+    p_community_address: payload.communityAddress ?? null,
+    p_preferred_communication_method: payload.preferredCommunicationMethod ?? null,
+    p_final_notes: payload.finalNotes ?? null,
+    p_reporting_primary_name: payload.reportingPrimaryName ?? null,
+    p_reporting_primary_email: payload.reportingPrimaryEmail ?? null,
+    p_additional_report_recipients: payload.additionalReportRecipients ?? null,
+    p_conversion_actions: payload.conversionActions ?? null,
+    p_technical_notes: payload.technicalNotes ?? null,
+  });
+
+  if (error) {
+    throw new Error(`Internal client save failed: ${error.message}`);
+  }
+
+  return data;
+}
+
 export async function getMyDashboardResources() {
   const { data, error } = await supabase.rpc("get_my_dashboard_resources");
   if (error) {

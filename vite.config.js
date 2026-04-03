@@ -6,6 +6,7 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 const ACCESS_COOKIE_KEY = "p11_access_token";
 const INTERNAL_DOC_ROUTES = new Set([
+  "/internal-client-editor.html",
   "/p11-onboarding-automation-flow.html",
   "/p11-onboarding-project-brief.html",
 ]);
@@ -179,6 +180,7 @@ export default defineConfig(({ mode }) => {
           accountAccess: path.resolve(rootDir, "p11-onboarding-account-access.html"),
           clientHome: path.resolve(rootDir, "client-home.html"),
           internal: path.resolve(rootDir, "internal.html"),
+          internalClientEditor: path.resolve(rootDir, "internal-client-editor.html"),
           internalSignup: path.resolve(rootDir, "internal-signup.html"),
           automationFlow: path.resolve(rootDir, "p11-onboarding-automation-flow.html"),
           projectBrief: path.resolve(rootDir, "p11-onboarding-project-brief.html"),

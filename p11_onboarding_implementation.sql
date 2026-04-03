@@ -3841,6 +3841,475 @@ begin
 end;
 $$;
 
+create or replace function public.internal_list_clients(
+  p_search text default null,
+  p_stage onboarding.onboarding_stage default null,
+  p_status onboarding.onboarding_status default null,
+  p_limit integer default 100,
+  p_offset integer default 0
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_search text := nullif(trim(coalesce(p_search, '')), '');
+  v_limit integer := greatest(1, least(coalesce(p_limit, 100), 500));
+  v_offset integer := greatest(coalesce(p_offset, 0), 0);
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  return (
+    with filtered as (
+      select
+        c.id as onboarding_client_id,
+        c.company_id as public_company_id,
+        c.company_directory_id,
+        coalesce(cd.company_name, pc."Name") as company_name,
+        c.display_name as community_name,
+        c.current_stage,
+        c.status,
+        c.target_go_live_at,
+        c.community_email,
+        c.community_phone,
+        c.updated_at
+      from onboarding.onboarding_client c
+      left join onboarding.company_directory cd on cd.id = c.company_directory_id
+      left join public."Company" pc on pc."ID" = c.company_id
+      where (p_stage is null or c.current_stage = p_stage)
+        and (p_status is null or c.status = p_status)
+        and (
+          v_search is null
+          or coalesce(cd.company_name, '') ilike '%' || v_search || '%'
+          or coalesce(pc."Name", '') ilike '%' || v_search || '%'
+          or coalesce(c.display_name, '') ilike '%' || v_search || '%'
+          or coalesce(c.community_email, '') ilike '%' || v_search || '%'
+        )
+    ),
+    paged as (
+      select *
+      from filtered f
+      order by f.updated_at desc, f.onboarding_client_id desc
+      limit v_limit
+      offset v_offset
+    )
+    select jsonb_build_object(
+      'items',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'onboarding_client_id', p.onboarding_client_id,
+              'public_company_id', p.public_company_id,
+              'company_directory_id', p.company_directory_id,
+              'company_name', p.company_name,
+              'community_name', p.community_name,
+              'current_stage', p.current_stage,
+              'status', p.status,
+              'target_go_live_at', p.target_go_live_at,
+              'community_email', p.community_email,
+              'community_phone', p.community_phone,
+              'updated_at', p.updated_at
+            )
+            order by p.updated_at desc, p.onboarding_client_id desc
+          )
+          from paged p
+        ),
+        '[]'::jsonb
+      ),
+      'total_count',
+      (select count(*)::integer from filtered),
+      'limit', v_limit,
+      'offset', v_offset
+    )
+  );
+end;
+$$;
+
+create or replace function public.internal_get_client_detail(
+  p_onboarding_client_id bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_client onboarding.onboarding_client%rowtype;
+  v_company_name text;
+  v_reporting_primary_name text;
+  v_reporting_primary_email text;
+  v_additional_report_recipients text;
+  v_conversion_actions text;
+  v_technical_notes text;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  if p_onboarding_client_id is null then
+    raise exception 'onboarding_client_id is required';
+  end if;
+
+  select c.*
+  into v_client
+  from onboarding.onboarding_client c
+  where c.id = p_onboarding_client_id;
+
+  if not found then
+    raise exception 'Onboarding client not found';
+  end if;
+
+  select coalesce(cd.company_name, pc."Name")
+  into v_company_name
+  from onboarding.onboarding_client c
+  left join onboarding.company_directory cd on cd.id = c.company_directory_id
+  left join public."Company" pc on pc."ID" = c.company_id
+  where c.id = p_onboarding_client_id;
+
+  select oc.full_name, oc.email
+  into v_reporting_primary_name, v_reporting_primary_email
+  from onboarding.onboarding_contact oc
+  where oc.onboarding_client_id = p_onboarding_client_id
+    and oc.role_code = 'reporting_primary'
+  order by oc.updated_at desc, oc.id desc
+  limit 1;
+
+  select string_agg(
+    coalesce(
+      nullif(trim(both ', ' from concat_ws(', ', oc.full_name, oc.email)), ''),
+      nullif(trim(coalesce(oc.notes, '')), '')
+    ),
+    '; '
+    order by oc.id
+  )
+  into v_additional_report_recipients
+  from onboarding.onboarding_contact oc
+  where oc.onboarding_client_id = p_onboarding_client_id
+    and oc.role_code = 'report_recipient';
+
+  select ow.conversion_actions, ow.technical_notes
+  into v_conversion_actions, v_technical_notes
+  from onboarding.onboarding_website ow
+  where ow.onboarding_client_id = p_onboarding_client_id;
+
+  return jsonb_build_object(
+    'onboarding_client_id', v_client.id,
+    'public_company_id', v_client.company_id,
+    'company_directory_id', v_client.company_directory_id,
+    'company_name', v_company_name,
+    'community_name', v_client.display_name,
+    'current_stage', v_client.current_stage,
+    'status', v_client.status,
+    'target_go_live_at', v_client.target_go_live_at,
+    'community_phone', v_client.community_phone,
+    'community_email', v_client.community_email,
+    'hours_of_operation', v_client.hours_of_operation,
+    'website_url', v_client.website_url,
+    'property_type', v_client.property_type_raw,
+    'parent_company', v_client.parent_company_raw,
+    'community_address', v_client.address_raw,
+    'preferred_communication_method', v_client.preferred_communication_method,
+    'final_notes', v_client.final_notes,
+    'reporting_primary_name', v_reporting_primary_name,
+    'reporting_primary_email', v_reporting_primary_email,
+    'additional_report_recipients', v_additional_report_recipients,
+    'conversion_actions', v_conversion_actions,
+    'technical_notes', v_technical_notes,
+    'updated_at', v_client.updated_at
+  );
+end;
+$$;
+
+create or replace function public.internal_upsert_client_info(
+  p_onboarding_client_id bigint default null,
+  p_company_directory_id bigint default null,
+  p_company_name text default null,
+  p_community_name text default null,
+  p_current_stage onboarding.onboarding_stage default null,
+  p_status onboarding.onboarding_status default null,
+  p_target_go_live_at date default null,
+  p_community_phone text default null,
+  p_community_email text default null,
+  p_hours_of_operation text default null,
+  p_website_url text default null,
+  p_property_type text default null,
+  p_parent_company text default null,
+  p_community_address text default null,
+  p_preferred_communication_method text default null,
+  p_final_notes text default null,
+  p_reporting_primary_name text default null,
+  p_reporting_primary_email text default null,
+  p_additional_report_recipients text default null,
+  p_conversion_actions text default null,
+  p_technical_notes text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_onboarding_client_id bigint := p_onboarding_client_id;
+  v_existing_client onboarding.onboarding_client%rowtype;
+  v_company_directory_id bigint := p_company_directory_id;
+  v_public_company_id bigint;
+  v_company_name text := nullif(trim(coalesce(p_company_name, '')), '');
+  v_company_name_normalized text;
+  v_community_name text := nullif(trim(coalesce(p_community_name, '')), '');
+  v_now timestamptz := now();
+  v_operation text := 'updated';
+begin
+  if v_auth_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  if v_onboarding_client_id is not null then
+    select *
+    into v_existing_client
+    from onboarding.onboarding_client c
+    where c.id = v_onboarding_client_id;
+
+    if not found then
+      raise exception 'Onboarding client not found';
+    end if;
+  end if;
+
+  if v_community_name is null and v_onboarding_client_id is null then
+    raise exception 'Community name is required for new clients';
+  end if;
+
+  if v_company_directory_id is not null then
+    select cd.id, cd.public_company_id, cd.company_name
+    into v_company_directory_id, v_public_company_id, v_company_name
+    from onboarding.company_directory cd
+    where cd.id = v_company_directory_id;
+
+    if v_company_directory_id is null then
+      raise exception 'Company directory record not found';
+    end if;
+  elsif v_company_name is not null then
+    v_company_name_normalized := onboarding.normalize_company_name(v_company_name);
+
+    select cd.id, cd.public_company_id, cd.company_name
+    into v_company_directory_id, v_public_company_id, v_company_name
+    from onboarding.company_directory cd
+    where cd.normalized_name = v_company_name_normalized
+    order by cd.id asc
+    limit 1;
+
+    if v_company_directory_id is null then
+      insert into onboarding.company_directory (
+        public_company_id,
+        company_name,
+        normalized_name,
+        created_via,
+        created_by_auth_uid,
+        metadata_json
+      )
+      values (
+        null,
+        v_company_name,
+        v_company_name_normalized,
+        'internal_editor',
+        v_auth_user_id,
+        jsonb_build_object('created_from', 'internal_upsert_client_info')
+      )
+      returning id, public_company_id, company_name
+      into v_company_directory_id, v_public_company_id, v_company_name;
+    end if;
+  elsif v_onboarding_client_id is not null then
+    v_company_directory_id := v_existing_client.company_directory_id;
+    v_public_company_id := v_existing_client.company_id;
+  else
+    raise exception 'Company selection is required for new clients';
+  end if;
+
+  if v_onboarding_client_id is null then
+    insert into onboarding.onboarding_client (
+      company_id,
+      company_directory_id,
+      status,
+      current_stage,
+      target_go_live_at,
+      display_name,
+      community_phone,
+      community_email,
+      hours_of_operation,
+      website_url,
+      property_type_raw,
+      parent_company_raw,
+      address_raw,
+      preferred_communication_method,
+      final_notes,
+      metadata_json,
+      created_by,
+      updated_by
+    )
+    values (
+      v_public_company_id,
+      v_company_directory_id,
+      coalesce(p_status, 'draft'::onboarding.onboarding_status),
+      coalesce(p_current_stage, 'contract_signed'::onboarding.onboarding_stage),
+      p_target_go_live_at,
+      coalesce(v_community_name, 'New Community'),
+      nullif(trim(coalesce(p_community_phone, '')), ''),
+      nullif(trim(coalesce(p_community_email, '')), ''),
+      nullif(trim(coalesce(p_hours_of_operation, '')), ''),
+      nullif(trim(coalesce(p_website_url, '')), ''),
+      nullif(trim(coalesce(p_property_type, '')), ''),
+      nullif(trim(coalesce(p_parent_company, '')), ''),
+      nullif(trim(coalesce(p_community_address, '')), ''),
+      nullif(trim(coalesce(p_preferred_communication_method, '')), ''),
+      nullif(trim(coalesce(p_final_notes, '')), ''),
+      jsonb_build_object(
+        'created_via', 'internal_editor',
+        'created_by_internal_user', v_auth_user_id,
+        'created_at', v_now
+      ),
+      v_auth_user_id,
+      v_auth_user_id
+    )
+    returning id into v_onboarding_client_id;
+
+    v_operation := 'created';
+  else
+    update onboarding.onboarding_client c
+    set company_id = coalesce(v_public_company_id, c.company_id),
+        company_directory_id = coalesce(v_company_directory_id, c.company_directory_id),
+        display_name = coalesce(v_community_name, c.display_name),
+        current_stage = coalesce(p_current_stage, c.current_stage),
+        status = coalesce(p_status, c.status),
+        target_go_live_at = coalesce(p_target_go_live_at, c.target_go_live_at),
+        community_phone = coalesce(nullif(trim(coalesce(p_community_phone, '')), ''), c.community_phone),
+        community_email = coalesce(nullif(trim(coalesce(p_community_email, '')), ''), c.community_email),
+        hours_of_operation = coalesce(nullif(trim(coalesce(p_hours_of_operation, '')), ''), c.hours_of_operation),
+        website_url = coalesce(nullif(trim(coalesce(p_website_url, '')), ''), c.website_url),
+        property_type_raw = coalesce(nullif(trim(coalesce(p_property_type, '')), ''), c.property_type_raw),
+        parent_company_raw = coalesce(nullif(trim(coalesce(p_parent_company, '')), ''), c.parent_company_raw),
+        address_raw = coalesce(nullif(trim(coalesce(p_community_address, '')), ''), c.address_raw),
+        preferred_communication_method = coalesce(
+          nullif(trim(coalesce(p_preferred_communication_method, '')), ''),
+          c.preferred_communication_method
+        ),
+        final_notes = coalesce(nullif(trim(coalesce(p_final_notes, '')), ''), c.final_notes),
+        updated_by = v_auth_user_id,
+        metadata_json = coalesce(c.metadata_json, '{}'::jsonb) || jsonb_build_object(
+          'last_internal_editor_at', v_now,
+          'last_internal_editor_user', v_auth_user_id
+        )
+    where c.id = v_onboarding_client_id;
+  end if;
+
+  update onboarding.portal_user_company_access m
+  set company_id = v_public_company_id,
+      updated_at = now()
+  where m.onboarding_client_id = v_onboarding_client_id;
+
+  if nullif(trim(coalesce(p_reporting_primary_name, '')), '') is not null
+     or nullif(trim(coalesce(p_reporting_primary_email, '')), '') is not null then
+    update onboarding.onboarding_contact oc
+    set full_name = coalesce(nullif(trim(coalesce(p_reporting_primary_name, '')), ''), oc.full_name),
+        email = coalesce(nullif(trim(coalesce(p_reporting_primary_email, '')), ''), oc.email),
+        is_primary = true,
+        source = 'internal_editor',
+        updated_at = now()
+    where oc.onboarding_client_id = v_onboarding_client_id
+      and oc.role_code = 'reporting_primary';
+
+    if not found then
+      insert into onboarding.onboarding_contact (
+        onboarding_client_id,
+        role_code,
+        full_name,
+        email,
+        is_primary,
+        source
+      )
+      values (
+        v_onboarding_client_id,
+        'reporting_primary',
+        nullif(trim(coalesce(p_reporting_primary_name, '')), ''),
+        nullif(trim(coalesce(p_reporting_primary_email, '')), ''),
+        true,
+        'internal_editor'
+      );
+    end if;
+  end if;
+
+  if nullif(trim(coalesce(p_additional_report_recipients, '')), '') is not null then
+    delete from onboarding.onboarding_contact oc
+    where oc.onboarding_client_id = v_onboarding_client_id
+      and oc.role_code = 'report_recipient'
+      and oc.source = 'internal_editor';
+
+    insert into onboarding.onboarding_contact (
+      onboarding_client_id,
+      role_code,
+      notes,
+      source
+    )
+    values (
+      v_onboarding_client_id,
+      'report_recipient',
+      nullif(trim(coalesce(p_additional_report_recipients, '')), ''),
+      'internal_editor'
+    );
+  end if;
+
+  if nullif(trim(coalesce(p_conversion_actions, '')), '') is not null
+     or nullif(trim(coalesce(p_technical_notes, '')), '') is not null then
+    insert into onboarding.onboarding_website (
+      onboarding_client_id,
+      conversion_actions,
+      technical_notes
+    )
+    values (
+      v_onboarding_client_id,
+      nullif(trim(coalesce(p_conversion_actions, '')), ''),
+      nullif(trim(coalesce(p_technical_notes, '')), '')
+    )
+    on conflict (onboarding_client_id)
+    do update set
+      conversion_actions = coalesce(
+        excluded.conversion_actions,
+        onboarding.onboarding_website.conversion_actions
+      ),
+      technical_notes = coalesce(
+        excluded.technical_notes,
+        onboarding.onboarding_website.technical_notes
+      ),
+      updated_at = now();
+  end if;
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'operation', v_operation,
+    'onboarding_client_id', v_onboarding_client_id,
+    'public_company_id', v_public_company_id,
+    'company_directory_id', v_company_directory_id,
+    'company_name', v_company_name,
+    'community_name', coalesce(v_community_name, v_existing_client.display_name)
+  );
+end;
+$$;
+
 create or replace function public.internal_list_onboarding_overview(
   p_search text default null,
   p_stage onboarding.onboarding_stage default null,
@@ -4442,6 +4911,9 @@ grant execute on function public.list_my_platform_access() to authenticated, ser
 grant execute on function public.upsert_my_platform_access(text, boolean, text) to authenticated, service_role;
 grant execute on function public.upsert_my_task_state(text, boolean, text, text) to authenticated, service_role;
 grant execute on function public.get_internal_portal_context() to authenticated, service_role;
+grant execute on function public.internal_list_clients(text, onboarding.onboarding_stage, onboarding.onboarding_status, integer, integer) to authenticated, service_role;
+grant execute on function public.internal_get_client_detail(bigint) to authenticated, service_role;
+grant execute on function public.internal_upsert_client_info(bigint, bigint, text, text, onboarding.onboarding_stage, onboarding.onboarding_status, date, text, text, text, text, text, text, text, text, text, text, text, text, text, text) to authenticated, service_role;
 grant execute on function public.internal_list_onboarding_overview(text, onboarding.onboarding_stage, integer) to authenticated, service_role;
 grant execute on function public.internal_get_sync_queue_summary() to authenticated, service_role;
 grant execute on function public.internal_process_sync_jobs(integer) to authenticated, service_role;

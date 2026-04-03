@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P11creative | Internal Client Editor</title>
+    <style>
+      :root {
+        --red: #fa4614;
+        --charcoal: #1a1a1a;
+        --bg: #f5f5f3;
+        --white: #ffffff;
+        --border: #e3e2df;
+        --gray: #767676;
+        --green: #1a9e6a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--charcoal);
+      }
+
+      body.auth-gate-pending {
+        opacity: 0;
+      }
+
+      .header {
+        background: var(--charcoal);
+        color: white;
+        border-bottom: 3px solid var(--red);
+        padding: 14px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: var(--red);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 12px;
+      }
+
+      .brand-title {
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .brand-title span {
+        color: var(--red);
+      }
+
+      .brand-sub {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .nav a {
+        color: rgba(255, 255, 255, 0.85);
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        padding: 6px 11px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .nav a.active {
+        background: var(--red);
+        border-color: var(--red);
+      }
+
+      .main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 24px 20px 40px;
+      }
+
+      .card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+      }
+
+      .card h1 {
+        margin: 0 0 8px;
+        font-size: 23px;
+      }
+
+      .intro {
+        margin: 0 0 16px;
+        color: var(--gray);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .meta {
+        margin: 0 0 14px;
+        font-size: 12px;
+        color: var(--gray);
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .field.full {
+        grid-column: 1 / -1;
+      }
+
+      .field label {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #4a4a4a;
+      }
+
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 11px;
+        font-size: 13px;
+        font-family: inherit;
+        background: #fff;
+      }
+
+      .field textarea {
+        min-height: 84px;
+        resize: vertical;
+      }
+
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus {
+        outline: none;
+        border-color: var(--red);
+        box-shadow: 0 0 0 2px rgba(250, 70, 20, 0.1);
+      }
+
+      .company-search-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .company-results {
+        display: none;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .company-results.show {
+        display: block;
+      }
+
+      .company-result-btn {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        background: #fff;
+        text-align: left;
+        padding: 10px 11px;
+        cursor: pointer;
+      }
+
+      .company-result-btn:last-child {
+        border-bottom: none;
+      }
+
+      .company-result-btn:hover {
+        background: rgba(250, 70, 20, 0.05);
+      }
+
+      .company-result-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--charcoal);
+      }
+
+      .company-result-meta {
+        margin-top: 2px;
+        font-size: 11px;
+        color: var(--gray);
+      }
+
+      .selected-company {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--green);
+      }
+
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      .btn.primary {
+        border-color: var(--red);
+        background: var(--red);
+        color: #fff;
+      }
+
+      .status {
+        margin-top: 10px;
+        min-height: 18px;
+        font-size: 12px;
+        color: var(--gray);
+      }
+
+      .status.error {
+        color: #cc2e17;
+      }
+
+      .status.success {
+        color: var(--green);
+      }
+
+      @media (max-width: 880px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body class="auth-gate-pending">
+    <header class="header">
+      <div class="brand">
+        <div class="mark">P11</div>
+        <div>
+          <div class="brand-title">P11<span>creative</span></div>
+          <div class="brand-sub">Internal Client Editor</div>
+        </div>
+      </div>
+      <nav class="nav" aria-label="App Navigation">
+        <a href="/internal.html">Home</a>
+        <a class="active" href="/internal-client-editor.html">Client Editor</a>
+        <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
+        <a href="/p11-onboarding-project-brief.html">Project Brief</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <h1 id="editorTitle">Create Client</h1>
+        <p class="intro">
+          Internal-only editor for creating new communities and updating core client information.
+        </p>
+        <p class="meta" id="editorMeta">New internal client setup</p>
+
+        <form id="clientEditorForm" novalidate>
+          <div class="form-grid">
+            <div class="field full">
+              <label for="companySearch">Company Directory</label>
+              <div class="company-search-row">
+                <input
+                  id="companySearch"
+                  type="text"
+                  placeholder="Search company directory by name..."
+                  autocomplete="off"
+                />
+                <button class="btn" id="companySearchBtn" type="button">Search</button>
+                <button class="btn" id="clearCompanyBtn" type="button">Clear</button>
+              </div>
+              <div class="company-results" id="companyResults"></div>
+              <div class="selected-company" id="selectedCompanyLabel"></div>
+            </div>
+
+            <div class="field full">
+              <label for="companyNameOverride">Or Create New Company Name</label>
+              <input
+                id="companyNameOverride"
+                type="text"
+                placeholder="Used only when no existing company directory match is selected"
+              />
+            </div>
+
+            <div class="field">
+              <label for="communityName">Community Name *</label>
+              <input id="communityName" type="text" required />
+            </div>
+
+            <div class="field">
+              <label for="targetGoLiveAt">Target Go Live</label>
+              <input id="targetGoLiveAt" type="date" />
+            </div>
+
+            <div class="field">
+              <label for="currentStage">Current Stage</label>
+              <select id="currentStage">
+                <option value="">No change</option>
+                <option value="contract_signed">Contract Signed</option>
+                <option value="intake_form">Intake Form</option>
+                <option value="account_access">Account Access</option>
+                <option value="creative_kickoff">Creative Kickoff</option>
+                <option value="campaign_build">Campaign Build</option>
+                <option value="prelaunch_review">Pre-Launch Review</option>
+                <option value="go_live">Go Live</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="status">Status</label>
+              <select id="status">
+                <option value="">No change</option>
+                <option value="draft">Draft</option>
+                <option value="submitted">Submitted</option>
+                <option value="in_review">In Review</option>
+                <option value="approved">Approved</option>
+                <option value="resubmitted">Resubmitted</option>
+                <option value="abandoned">Abandoned</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="communityPhone">Community Phone</label>
+              <input id="communityPhone" type="text" />
+            </div>
+
+            <div class="field">
+              <label for="communityEmail">Community Email</label>
+              <input id="communityEmail" type="email" />
+            </div>
+
+            <div class="field">
+              <label for="websiteUrl">Website URL</label>
+              <input id="websiteUrl" type="url" />
+            </div>
+
+            <div class="field">
+              <label for="hoursOfOperation">Hours Of Operation</label>
+              <input id="hoursOfOperation" type="text" />
+            </div>
+
+            <div class="field">
+              <label for="propertyType">Property Type</label>
+              <input id="propertyType" type="text" />
+            </div>
+
+            <div class="field">
+              <label for="parentCompany">Parent Company / Developer</label>
+              <input id="parentCompany" type="text" />
+            </div>
+
+            <div class="field full">
+              <label for="communityAddress">Community Address</label>
+              <input id="communityAddress" type="text" />
+            </div>
+
+            <div class="field">
+              <label for="reportingPrimaryName">Reporting Contact Name</label>
+              <input id="reportingPrimaryName" type="text" />
+            </div>
+
+            <div class="field">
+              <label for="reportingPrimaryEmail">Reporting Contact Email</label>
+              <input id="reportingPrimaryEmail" type="email" />
+            </div>
+
+            <div class="field full">
+              <label for="additionalReportRecipients">Additional Report Recipients</label>
+              <textarea id="additionalReportRecipients"></textarea>
+            </div>
+
+            <div class="field">
+              <label for="preferredCommunicationMethod">Preferred Communication Method</label>
+              <input id="preferredCommunicationMethod" type="text" />
+            </div>
+
+            <div class="field full">
+              <label for="conversionActions">Conversion Actions</label>
+              <textarea id="conversionActions"></textarea>
+            </div>
+
+            <div class="field full">
+              <label for="technicalNotes">Technical Notes</label>
+              <textarea id="technicalNotes"></textarea>
+            </div>
+
+            <div class="field full">
+              <label for="finalNotes">Final Notes</label>
+              <textarea id="finalNotes"></textarea>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="saveClientBtn" type="submit">Save Client</button>
+            <button class="btn" id="openOnboardingBtn" type="button">Open Onboarding Flow</button>
+            <a class="btn" href="/internal.html">Back To Internal Home</a>
+          </div>
+          <div class="status" id="editorStatus"></div>
+        </form>
+      </section>
+    </main>
+
+    <script src="/runtime-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./frontend/src/internal-static-guard.js"></script>
+    <script type="module" src="./frontend/src/internal-client-editor-main.js"></script>
+  </body>
+</html>

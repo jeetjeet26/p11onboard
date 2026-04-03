@@ -407,6 +407,21 @@
         color: var(--amber);
       }
 
+      .table-action-btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 6px;
+        padding: 5px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .table-action-btn:hover {
+        border-color: var(--red);
+        color: var(--red);
+      }
+
       .session {
         margin-left: auto;
         font-size: 12px;
@@ -445,6 +460,7 @@
       </div>
       <nav class="nav" aria-label="App Navigation">
         <a class="active" href="/internal.html">Home</a>
+        <a href="/internal-client-editor.html">Client Editor</a>
         <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
         <a href="/p11-onboarding-project-brief.html">Project Brief</a>
       </nav>
@@ -484,12 +500,13 @@
             <option value="prelaunch_review">Pre-Launch Review</option>
             <option value="go_live">Go Live</option>
           </select>
+          <button class="submit-btn" id="createClientBtn" type="button">Create Client</button>
           <button class="submit-btn" id="refreshBtn" type="button">Refresh</button>
           <button class="logout" id="logoutBtn" type="button">Log Out</button>
           <span class="session" id="sessionInfo"></span>
         </div>
         <p style="margin:8px 2px 0; color:var(--gray); font-size:12px;">
-          Click any community row to open the appropriate onboarding step view.
+          Click a row to open onboarding, or use Edit to update client information.
         </p>
         <div class="sync-status" id="syncQueueStatus"></div>
 
@@ -550,6 +567,7 @@
                 <th>Required Access Outstanding</th>
                 <th>Queued Sync Jobs</th>
                 <th>Last Submission</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="overviewBody"></tbody>

@@ -124,7 +124,7 @@ function renderOverview(rows) {
   if (!rows.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="8" style="color:#767676;">No onboarding communities matched your filters.</td>
+        <td colspan="9" style="color:#767676;">No onboarding communities matched your filters.</td>
       </tr>
     `;
     updateStats(rows);
@@ -151,6 +151,16 @@ function renderOverview(rows) {
         <td>${escapeHtml(String(row.required_platform_outstanding_count ?? 0))}</td>
         <td>${escapeHtml(String(row.queued_sync_jobs ?? 0))}</td>
         <td>${escapeHtml(row.last_submitted_at ? new Date(row.last_submitted_at).toLocaleString() : "Not submitted")}</td>
+        <td>
+          <button
+            class="table-action-btn"
+            type="button"
+            data-edit-client-id="${escapeHtml(row.onboarding_client_id)}"
+            aria-label="Edit ${escapeHtml(row.community_name || "community")}"
+          >
+            Edit
+          </button>
+        </td>
       </tr>
     `
     )
@@ -176,6 +186,14 @@ async function openCommunityDashboard(onboardingClientId, currentStage) {
     setTableLoadingState(null);
     setSyncStatus(`Unable to open community dashboard: ${error.message}`, "error");
   }
+}
+
+function openClientEditor(onboardingClientId = null) {
+  const numericId = Number(onboardingClientId);
+  const destination = Number.isFinite(numericId) && numericId > 0
+    ? `/internal-client-editor.html?clientId=${numericId}`
+    : "/internal-client-editor.html";
+  window.location.href = destination;
 }
 
 async function loadOverview() {
@@ -359,6 +377,10 @@ function bindHandlers() {
 
   document.getElementById("internalForgotPassword")?.addEventListener("click", handleForgotPassword);
 
+  document.getElementById("createClientBtn")?.addEventListener("click", () => {
+    openClientEditor(null);
+  });
+
   document.getElementById("inviteForm")?.addEventListener("submit", handleCreateInvite);
 
   document.getElementById("copyInviteBtn")?.addEventListener("click", async () => {
@@ -389,12 +411,20 @@ function bindHandlers() {
   });
 
   document.getElementById("overviewBody")?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest("[data-edit-client-id]");
+    if (editButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openClientEditor(editButton.dataset.editClientId);
+      return;
+    }
     const row = event.target.closest("tr[data-onboarding-client-id]");
     if (!row) return;
     await openCommunityDashboard(row.dataset.onboardingClientId, row.dataset.currentStage);
   });
 
   document.getElementById("overviewBody")?.addEventListener("keydown", async (event) => {
+    if (event.target.closest("[data-edit-client-id]")) return;
     if (event.key !== "Enter" && event.key !== " ") return;
     const row = event.target.closest("tr[data-onboarding-client-id]");
     if (!row) return;
