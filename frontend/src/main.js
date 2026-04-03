@@ -1771,7 +1771,6 @@ async function handleCompleteSubmit(event) {
 }
 
 async function bootstrapAuth() {
-  renderAuthRoot();
   const logoutBtn = document.getElementById("logoutBtn");
   logoutBtn?.addEventListener("click", async () => {
     try {
@@ -1781,14 +1780,27 @@ async function bootstrapAuth() {
     }
   });
 
-  const session = await getCurrentSession();
-  state.session = session;
-  if (session) {
-    await hydrateAuthenticatedApp(session);
-  } else {
+  try {
+    const session = await getCurrentSession();
+    state.session = session;
+    if (session) {
+      await hydrateAuthenticatedApp(session);
+    } else {
+      showAuthRoot();
+      renderAuthRoot();
+      updateSessionUi(null, null);
+      updateTeamToggleAccess(null);
+    }
+  } catch (error) {
     showAuthRoot();
+    renderAuthRoot();
     updateSessionUi(null, null);
     updateTeamToggleAccess(null);
+    setAuthMessage(
+      "loginMessage",
+      `Unable to load your session right now: ${error.message}`,
+      "error"
+    );
   }
 
   onAuthStateChange(async (_event, nextSession) => {
