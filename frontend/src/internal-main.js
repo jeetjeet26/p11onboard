@@ -16,6 +16,7 @@ const state = {
   context: null,
   overviewRows: [],
   openingCommunityId: null,
+  creatingInvite: false,
 };
 
 function escapeHtml(value) {
@@ -210,6 +211,8 @@ function getInviteBaseUrl() {
 
 async function handleCreateInvite(event) {
   event.preventDefault();
+  if (state.creatingInvite) return;
+
   const submitBtn = document.getElementById("inviteSubmit");
   const email = document.getElementById("inviteEmail")?.value?.trim();
   const fullName = document.getElementById("inviteFullName")?.value?.trim() || null;
@@ -222,14 +225,22 @@ async function handleCreateInvite(event) {
     setInviteMessage("Invite email is required.", "error");
     return;
   }
+  if (!email.includes("@")) {
+    setInviteMessage("Enter a valid invite email address.", "error");
+    return;
+  }
   if (expiresInHours !== null && (!Number.isFinite(expiresInHours) || expiresInHours < 1)) {
     setInviteMessage("Invite expiry must be a positive number of hours.", "error");
     return;
   }
 
   try {
-    setInviteMessage("");
-    if (submitBtn) submitBtn.disabled = true;
+    state.creatingInvite = true;
+    setInviteMessage("Generating invite link...");
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Generating...";
+    }
     const result = await createInternalSignupInvite({
       email,
       fullName,
@@ -237,12 +248,19 @@ async function handleCreateInvite(event) {
       expiresInHours,
       inviteBaseUrl: getInviteBaseUrl(),
     });
-    if (linkOutput) linkOutput.value = result?.invite_url || "";
+    if (!result?.invite_url) {
+      throw new Error("Invite was created, but no invite URL was returned.");
+    }
+    if (linkOutput) linkOutput.value = result.invite_url;
     setInviteMessage("Invite link generated. Send it directly to the team member.", "success");
   } catch (error) {
-    setInviteMessage(error.message, "error");
+    setInviteMessage(`Unable to generate invite: ${error.message}`, "error");
   } finally {
-    if (submitBtn) submitBtn.disabled = false;
+    state.creatingInvite = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Generate Invite Link";
+    }
   }
 }
 
