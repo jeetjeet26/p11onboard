@@ -164,6 +164,7 @@ p  { font-size:13px; color:var(--gray); line-height:1.7; }
   .header-right { justify-content: flex-start; }
 }
 </style>
+<link rel="stylesheet" href="/frontend/src/styles/shared.css" />
 </head>
 <body class="auth-gate-pending">
 
@@ -175,10 +176,12 @@ p  { font-size:13px; color:var(--gray); line-height:1.7; }
   <div class="header-right">
     <nav class="header-nav" aria-label="App Navigation">
       <a href="/internal.html">Home</a>
+      <a href="/internal-company.html">Companies</a>
+      <a href="/internal-client-editor.html">Client Editor</a>
       <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
       <a class="active" href="/p11-onboarding-project-brief.html">Project Brief</a>
+      <button class="internal-logout" type="button">Log Out</button>
     </nav>
-    <div class="date-badge">Last Updated: March 17, 2026</div>
   </div>
 </header>
 
@@ -228,10 +231,10 @@ p  { font-size:13px; color:var(--gray); line-height:1.7; }
       <tr><td>Current form tool</td><td>Jotform — submissions sent to p11creative@gmail.com. Decision pending on whether to migrate to native Softr form.</td></tr>
       <tr><td>P11 access email</td><td>p11creative@gmail.com — all platform admin invites sent here</td></tr>
       <tr><td>Brand colors</td><td>P11 Red #FA4614 (use sparingly), Charcoal #1A1A1A, White, Off-white #F5F5F3</td></tr>
-      <tr><td>Services offered</td><td>Paid Search (SEM), Paid Social (Meta), SEO, Display/Remarketing, Email Marketing, CTV, ILS Management (Zillow/CoStar), Reporting & Analytics</td></tr>
+      <tr><td>Services offered</td><td>Paid Search (SEM), Paid Social (Meta), SEO, Display/Remarketing, Email Marketing, CTV, ILS Management (Zillow/CoStar)</td></tr>
       <tr><td>Accelo Template IDs</td><td>SEO: 367, SEM: 396, Paid Social: 369, Organic Social: 371, Email: 368, ILS: 374, Media Planning: 373, Creative: 370, Google Ads Audit: 407, Reporting Audit: 408</td></tr>
       <tr><td>Standard platforms needed</td><td>Google Ads, GA4, GTM, Google Search Console, Google Business Profile, Meta Pages, Meta Ads Manager, Website CMS, CRM</td></tr>
-      <tr><td>Onboarding stages (tracker)</td><td>1. Contract Signed → 2. Intake Form → 3. Account Access → 4. Creative Kickoff → 5. Campaign Build → 6. Pre-Launch Review → 7. GO LIVE</td></tr>
+      <tr><td>Onboarding stages (tracker)</td><td>1. Contract Signed → 2. Intake Form → 3. Account Access → 4. Creative Development → 5. Campaign Build → 6. Pre-Launch Review → 7. GO LIVE</td></tr>
       <tr><td>Typical timeline</td><td>Contract → Go-Live = 13+ business days. Biggest bottleneck = client granting platform access (5–7 days dependent on client).</td></tr>
       <tr><td>Source documents reviewed</td><td>Digital Marketing Onboarding Workflow System (flowchart), New Client Onboarding Policy & Procedure doc, Las Brisas Questionnaire example (Jotform submission via Gmail)</td></tr>
     </table>
@@ -305,7 +308,7 @@ We built two deliverables that I'm re-uploading:
 KEY CONTEXT:
 - P11creative brand: Red #FA4614 (use sparingly), Charcoal #1A1A1A, Inter font, tagline "AMPLIFIED REAL ESTATE MARKETING."
 - Tools in use: Accelo (billing/PM), Basecamp (client comms), Dropbox (creative assets), Softr (client portal at clients.p11.com), Jotform (current intake form → submissions to p11creative@gmail.com), Google Drive (campaign sheets), Looker (reporting)
-- Services: Paid Search, Paid Social (Meta), SEO, Display/Remarketing, Email Marketing, CTV, ILS Management (Zillow/CoStar), Reporting & Analytics
+- Services: Paid Search, Paid Social (Meta), SEO, Display/Remarketing, Email Marketing, CTV, ILS Management (Zillow/CoStar)
 - Standard platforms we need admin access to: Google Ads, GA4, GTM, Search Console, Google Business Profile, Meta Pages, Meta Ads Manager, Website CMS, CRM
 - Accelo Template IDs: SEO=367, SEM=396, Paid Social=369, Email=368, ILS=374, Media Planning=373, Creative=370, Google Ads Audit=407, Reporting Audit=408
 
@@ -356,14 +359,25 @@ I'd like to continue refining the dashboard and start building out the automatio
 </footer>
 
 <script>
-function copyPrompt() {
+async function copyPrompt() {
   const text = document.getElementById('promptText').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector('.copy-btn');
+  const btn = document.querySelector('.copy-btn');
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+    await navigator.clipboard.writeText(text);
     btn.textContent = 'Copied!';
     btn.style.background = '#1A9E6A';
     setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#FA4614'; }, 2500);
-  });
+  } catch (_error) {
+    btn.textContent = 'Select Text';
+    btn.style.background = '#8C5A00';
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('promptText'));
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#FA4614'; }, 3000);
+  }
 }
 </script>
 <script src="/runtime-config.js"></script>

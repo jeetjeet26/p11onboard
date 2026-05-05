@@ -1,5 +1,5 @@
 import { supabase } from "./supabase.js";
-import { BRAND_ASSET_BUCKET } from "./config.js";
+import { BRAND_ASSET_BUCKET, SUPABASE_URL } from "./config.js";
 
 export async function signUpUser({ email, password, fullName }) {
   const { data, error } = await supabase.auth.signUp({
@@ -461,6 +461,188 @@ export async function redeemInternalSignupInvite({ inviteToken, fullName = null 
     throw new Error(`Internal invite redemption failed: ${error.message}`);
   }
 
+  return data;
+}
+
+// -----------------------------------------------------------------------------
+// Dropbox integration
+// -----------------------------------------------------------------------------
+
+function getFunctionsBase() {
+  if (!SUPABASE_URL) {
+    throw new Error(
+      "Supabase URL not configured; cannot reach Dropbox edge functions."
+    );
+  }
+  return `${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1`;
+}
+
+async function getAuthHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) {
+    throw new Error("You must be signed in to call Dropbox operations.");
+  }
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+async function invokeDropboxAdmin(action, extra = {}) {
+  const { data, error } = await supabase.functions.invoke("dropbox-admin", {
+    body: { action, ...extra },
+  });
+  if (error) {
+    const suffix = data?.error ? `: ${data.error}` : "";
+    throw new Error(`Dropbox admin (${action}) failed${suffix || `: ${error.message}`}`);
+  }
+  return data;
+}
+
+export async function startDropboxOAuth({ returnTo = window.location.href } = {}) {
+  const headers = {
+    ...(await getAuthHeaders()),
+    "Content-Type": "application/json",
+  };
+  const resp = await fetch(`${getFunctionsBase()}/dropbox-oauth/start`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ returnTo }),
+  });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`Unable to start Dropbox connection: ${text || resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function getDropboxStatus() {
+  return invokeDropboxAdmin("status");
+}
+
+export async function disconnectDropbox() {
+  return invokeDropboxAdmin("disconnect");
+}
+
+export async function setDropboxFolderRoot(folderRootPath) {
+  return invokeDropboxAdmin("set_root", { folder_root_path: folderRootPath });
+}
+
+export async function listDropboxFolder(path = "") {
+  return invokeDropboxAdmin("list_folder", { path });
+}
+
+export async function createDropboxFolderForClient({
+  onboardingClientId,
+  folderName = null,
+  parentPath = null,
+  autorename = true,
+}) {
+  return invokeDropboxAdmin("create_folder", {
+    onboarding_client_id: onboardingClientId,
+    folder_name: folderName,
+    parent_path: parentPath,
+    autorename,
+  });
+}
+
+export async function linkExistingDropboxFolder({
+  onboardingClientId,
+  folderPath = null,
+  folderId = null,
+}) {
+  return invokeDropboxAdmin("link_existing_folder", {
+    onboarding_client_id: onboardingClientId,
+    folder_path: folderPath,
+    folder_id: folderId,
+  });
+}
+
+export async function getDropboxBinding(onboardingClientId) {
+  return invokeDropboxAdmin("get_binding", {
+    onboarding_client_id: onboardingClientId,
+  });
+}
+
+export async function unlinkDropboxFolder(onboardingClientId) {
+  return invokeDropboxAdmin("unlink_folder", {
+    onboarding_client_id: onboardingClientId,
+  });
+}
+
+export async function refreshDropboxSharedLink(onboardingClientId) {
+  return invokeDropboxAdmin("refresh_shared_link", {
+    onboarding_client_id: onboardingClientId,
+  });
+}
+
+export async function uploadFileToDropbox({
+  onboardingClientId,
+  file,
+  subpath = null,
+}) {
+  const headers = await getAuthHeaders();
+  const body = new FormData();
+  body.append("onboarding_client_id", String(onboardingClientId));
+  body.append("file", file, file.name);
+  if (subpath) body.append("subpath", subpath);
+
+  const resp = await fetch(`${getFunctionsBase()}/dropbox-upload`, {
+    method: "POST",
+    headers,
+    body,
+  });
+
+  let payload = null;
+  try {
+    payload = await resp.json();
+  } catch (_error) {
+    payload = null;
+  }
+
+  if (!resp.ok) {
+    const message = payload?.error || `Dropbox upload failed (${resp.status})`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+export async function internalGetDropboxStatusRpc() {
+  const { data, error } = await supabase.rpc("internal_get_dropbox_status");
+  if (error) {
+    throw new Error(`Dropbox status fetch failed: ${error.message}`);
+  }
+  return data || { is_active: false, is_connected: false };
+}
+
+export async function internalGetDropboxBinding(onboardingClientId) {
+  const { data, error } = await supabase.rpc(
+    "internal_get_dropbox_folder_binding",
+    { p_onboarding_client_id: onboardingClientId }
+  );
+  if (error) {
+    throw new Error(`Dropbox binding fetch failed: ${error.message}`);
+  }
+  return data;
+}
+
+export async function internalClearDropboxBinding(onboardingClientId) {
+  const { data, error } = await supabase.rpc(
+    "internal_clear_dropbox_folder_binding",
+    { p_onboarding_client_id: onboardingClientId }
+  );
+  if (error) {
+    throw new Error(`Dropbox unlink failed: ${error.message}`);
+  }
+  return data;
+}
+
+export async function getMyDropboxFolder() {
+  const { data, error } = await supabase.rpc("get_my_dropbox_folder");
+  if (error) {
+    throw new Error(`Dropbox folder fetch failed: ${error.message}`);
+  }
   return data;
 }
 

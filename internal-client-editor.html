@@ -276,7 +276,117 @@
           grid-template-columns: 1fr;
         }
       }
+
+      .dropbox-card {
+        margin-top: 18px;
+      }
+
+      .dropbox-card h2 {
+        margin: 0 0 6px;
+        font-size: 17px;
+      }
+
+      .dropbox-card .intro {
+        margin-bottom: 14px;
+      }
+
+      .dropbox-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 16px;
+        margin: 10px 0 14px;
+        padding: 12px 14px;
+        background: #fafaf8;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 12px;
+      }
+
+      .dropbox-summary .k {
+        color: var(--gray);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .dropbox-summary .v {
+        color: var(--charcoal);
+        font-size: 13px;
+        word-break: break-word;
+      }
+
+      .dropbox-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .dropbox-pill.ok {
+        color: #0e6b47;
+        background: rgba(26, 158, 106, 0.12);
+      }
+
+      .dropbox-pill.warn {
+        color: #8c5a00;
+        background: rgba(240, 180, 40, 0.18);
+      }
+
+      .dropbox-pill.err {
+        color: #a0281a;
+        background: rgba(250, 70, 20, 0.15);
+      }
+
+      .dropbox-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .dropbox-subform {
+        border-top: 1px dashed var(--border);
+        margin-top: 14px;
+        padding-top: 14px;
+      }
+
+      .dropbox-subform h3 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--charcoal);
+      }
+
+      .dropbox-binding {
+        background: #f5f8f3;
+        border: 1px solid #d2e5c6;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+      }
+
+      .dropbox-binding a {
+        color: var(--red);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .dropbox-binding a:hover {
+        text-decoration: underline;
+      }
+
+      .dropbox-hidden {
+        display: none !important;
+      }
     </style>
+    <link rel="stylesheet" href="/frontend/src/styles/shared.css" />
   </head>
   <body class="auth-gate-pending">
     <header class="header">
@@ -293,6 +403,7 @@
         <a class="active" href="/internal-client-editor.html">Client Editor</a>
         <a href="/p11-onboarding-automation-flow.html">Automation Flow</a>
         <a href="/p11-onboarding-project-brief.html">Project Brief</a>
+        <button class="internal-logout" type="button">Log Out</button>
       </nav>
     </header>
 
@@ -348,7 +459,7 @@
                 <option value="contract_signed">Contract Signed</option>
                 <option value="intake_form">Intake Form</option>
                 <option value="account_access">Account Access</option>
-                <option value="creative_kickoff">Creative Kickoff</option>
+                <option value="creative_kickoff">Creative Development</option>
                 <option value="campaign_build">Campaign Build</option>
                 <option value="prelaunch_review">Pre-Launch Review</option>
                 <option value="go_live">Go Live</option>
@@ -447,6 +558,108 @@
           </div>
           <div class="status" id="editorStatus"></div>
         </form>
+      </section>
+
+      <section class="card dropbox-card" id="dropboxCard">
+        <h2>Dropbox For Work</h2>
+        <p class="intro">
+          Shared P11 Dropbox Business connection used for community creative folders.
+          Connect once per workspace, then link or create the community's folder to enable uploads.
+        </p>
+
+        <div class="dropbox-summary" id="dropboxSummary">
+          <div>
+            <div class="k">Connection</div>
+            <div class="v" id="dropboxConnection">Loading...</div>
+          </div>
+          <div>
+            <div class="k">Authorized Account</div>
+            <div class="v" id="dropboxAccount">—</div>
+          </div>
+          <div>
+            <div class="k">Team / Workspace</div>
+            <div class="v" id="dropboxTeam">—</div>
+          </div>
+          <div>
+            <div class="k">Root Folder For New Communities</div>
+            <div class="v" id="dropboxRoot">—</div>
+          </div>
+        </div>
+
+        <div class="dropbox-actions">
+          <button class="btn primary" id="dropboxConnectBtn" type="button">Connect P11 Dropbox</button>
+          <button class="btn" id="dropboxRefreshBtn" type="button">Refresh Status</button>
+          <button class="btn" id="dropboxDisconnectBtn" type="button">Disconnect</button>
+        </div>
+
+        <div class="dropbox-subform" id="dropboxRootForm">
+          <h3>Set Default Parent Folder</h3>
+          <p class="intro" style="margin-bottom:10px;">
+            Applied when creating new community folders. Leave as <code>/</code> to use the
+            Dropbox root.
+          </p>
+          <div class="company-search-row">
+            <input id="dropboxRootPath" type="text" placeholder="/Clients" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:10px 11px;font-size:13px;" />
+            <button class="btn" id="dropboxSaveRootBtn" type="button">Save Root</button>
+          </div>
+          <div class="status" id="dropboxRootStatus"></div>
+        </div>
+
+        <div class="dropbox-subform" id="dropboxCommunitySection">
+          <h3>Community Folder</h3>
+          <p class="intro" id="dropboxCommunityIntro" style="margin-bottom:10px;">
+            Save the client first to manage their Dropbox folder.
+          </p>
+
+          <div class="dropbox-binding dropbox-hidden" id="dropboxBindingCard">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center;">
+              <div>
+                <div class="k" style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--gray);letter-spacing:0.04em;">Linked Folder</div>
+                <div class="v" id="dropboxBindingPath" style="font-size:13px;font-weight:700;"></div>
+                <div style="font-size:11px;color:var(--gray);margin-top:4px;" id="dropboxBindingMeta"></div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a class="btn" id="dropboxBindingOpen" target="_blank" rel="noopener">Open In Dropbox</a>
+                <button class="btn" id="dropboxUnlinkBtn" type="button">Unlink</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid" style="gap:10px;">
+            <div class="field">
+              <label for="dropboxCreateName">Create New Folder Name</label>
+              <input id="dropboxCreateName" type="text" placeholder="Defaults to community name" />
+            </div>
+            <div class="field">
+              <label for="dropboxCreateParent">Parent Folder (optional)</label>
+              <input id="dropboxCreateParent" type="text" placeholder="/Clients" />
+            </div>
+            <div class="field full" style="flex-direction:row;align-items:center;gap:10px;">
+              <button class="btn primary" id="dropboxCreateBtn" type="button">Create + Link Folder</button>
+              <span style="font-size:11px;color:var(--gray);">Creates and links the community folder plus Assets, Logos, Brand Guide, Ad Copy, Campaigns, and Other subfolders.</span>
+            </div>
+
+            <div class="field full">
+              <label for="dropboxLinkPath">Link Existing Folder (path or Dropbox ID)</label>
+              <input id="dropboxLinkPath" type="text" placeholder="/Clients/Community Name or id:abcdef..." />
+            </div>
+            <div class="field full" style="flex-direction:row;align-items:center;gap:10px;">
+              <button class="btn" id="dropboxLinkBtn" type="button">Link Existing Folder</button>
+              <button class="btn" id="dropboxBrowseBtn" type="button">Browse Root Folder</button>
+            </div>
+          </div>
+
+          <div class="dropbox-subform dropbox-hidden" id="dropboxBrowserSection" style="margin-top:10px;">
+            <h3>Browse</h3>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+              <input id="dropboxBrowsePath" type="text" placeholder="/" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13px;" />
+              <button class="btn" id="dropboxBrowseGoBtn" type="button">List</button>
+            </div>
+            <div id="dropboxBrowseResults" style="max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:8px;"></div>
+          </div>
+
+          <div class="status" id="dropboxCommunityStatus"></div>
+        </div>
       </section>
     </main>
 

@@ -18,49 +18,20 @@ import {
   submitIntake,
   uploadBrandAssets,
   upsertTaskState,
+  getMyDropboxFolder,
+  uploadFileToDropbox,
 } from "./api.js";
+import {
+  ACCESS_STEP_COMPLETION_TASK_KEY,
+  STAGE_SEQUENCE,
+  deriveDisplayStage,
+  getStageCopy,
+  normalizeStage,
+  stageIndex,
+  toStageLabel,
+} from "./stages.js";
+import { applyRoleChrome, consumeRedirectNotice, renderNotice } from "./navigation.js";
 import { escapeHtml, sanitizeUrl } from "./utils/sanitize.js";
-
-const STAGE_SEQUENCE = [
-  "contract_signed",
-  "intake_form",
-  "account_access",
-  "creative_kickoff",
-  "campaign_build",
-  "prelaunch_review",
-  "go_live",
-];
-
-const STAGE_COPY = {
-  contract_signed: {
-    title: "Step 1 of 7 — Contract Signed",
-    text: "Welcome to P11creative onboarding. We are ready for your intake details so we can begin campaign setup.",
-  },
-  intake_form: {
-    title: "Step 2 of 7 — Complete Your Intake Questionnaire",
-    text: "Fill out all sections below so we can start building your campaigns. After submission, use Continue Onboarding to grant platform access.",
-  },
-  account_access: {
-    title: "Step 3 of 7 — Grant Admin Access to Your Platforms",
-    text: "Questionnaire received. Use Continue Onboarding to finish platform invite access.",
-  },
-  creative_kickoff: {
-    title: "Step 4 of 7 — Creative Kickoff",
-    text: "Our team is preparing campaign direction and assets based on your submitted intake.",
-  },
-  campaign_build: {
-    title: "Step 5 of 7 — Campaign Build",
-    text: "Campaigns are being built and configured for launch readiness.",
-  },
-  prelaunch_review: {
-    title: "Step 6 of 7 — Pre-Launch Review",
-    text: "Final checks and approvals are in progress before go-live.",
-  },
-  go_live: {
-    title: "Step 7 of 7 — GO LIVE",
-    text: "Campaigns are live. Your team and P11creative can now monitor performance and iterate.",
-  },
-};
 
 const SERVICE_ID_TO_CODE = {
   ps: "paid_search",
@@ -70,7 +41,6 @@ const SERVICE_ID_TO_CODE = {
   email: "email_marketing",
   ctv: "ctv",
   ils: "ils_management",
-  reporting: "reporting_analytics",
 };
 
 const SERVICE_CODE_TO_ID = Object.fromEntries(
@@ -88,13 +58,38 @@ const PLATFORM_LABEL_TO_CODE = {
   "Google Business Profile": "google_business_profile",
   "Meta Business Suite / Pages": "meta_business_suite",
   "Meta Ads Manager": "meta_ads",
+  "LinkedIn Ads": "linkedin_ads",
+  "Email Marketing Platform": "email_marketing_platform",
   "Website CMS (login credentials)": "website_cms",
   "CRM Platform": "crm",
   "ILS Platform (Zillow / CoStar)": "ils",
+  "Payment Methods": "payment_methods",
 };
 
 const PENDING_SIGNUP_KEY = "p11_pending_signup";
 const VIEW_PREF_KEY = "p11_dashboard_view";
+const INTAKE_DRAFT_KEY_PREFIX = "p11_intake_draft";
+const LAUNCH_WORKFLOW_KEY_PREFIX = "p11_launch_workflow";
+
+const PLATFORM_WORKFLOW_OPTIONS = [
+  "Not Started",
+  "Building",
+  "Ready for Review",
+  "Approved",
+  "Live",
+  "In Progress",
+  "Blocked",
+];
+
+const SERVICE_PLATFORM_MAP = {
+  paid_search: { code: "google_ads", label: "Google Ads" },
+  paid_social: { code: "meta_ads", label: "Meta Ads" },
+  seo: { code: "seo", label: "SEO" },
+  display: { code: "display", label: "Display" },
+  email_marketing: { code: "email_marketing_platform", label: "Email Marketing" },
+  ctv: { code: "ctv", label: "CTV" },
+  ils_management: { code: "ils", label: "ILS" },
+};
 
 const state = {
   session: null,
@@ -110,6 +105,9 @@ const state = {
   searchTimers: {},
   dashboardResources: { assignments: [], links: [] },
   submissionAttemptKey: null,
+  dropboxFolder: null,
+  taskStates: new Map(),
+  launchWorkflow: null,
 };
 
 const DEFAULT_TEAM_ASSIGNMENTS = [
@@ -316,7 +314,6 @@ function collectServiceConfigs(selectedServices) {
     if (service.service_id === "display") {
       configs[service.service_code] = {
         monthly_budget: getSectionValue(section, "Monthly Display Budget"),
-        remarketing_focus: getSectionValue(section, "Primary remarketing focus"),
       };
       return;
     }
@@ -348,16 +345,6 @@ function collectServiceConfigs(selectedServices) {
       return;
     }
 
-    if (service.service_id === "reporting") {
-      configs[service.service_code] = {
-        report_frequency: getSectionValue(section, "Report frequency"),
-        report_delivery_preference: getSectionValue(
-          section,
-          "Report delivery preference"
-        ),
-        key_metrics: getSectionValue(section, "Key metrics you care most about"),
-      };
-    }
   });
   return configs;
 }
@@ -430,6 +417,14 @@ async function persistTaskCheckbox(taskRow, checked) {
       groupCode,
       taskText,
     });
+    state.taskStates.set(taskKey, {
+      task_key: taskKey,
+      is_complete: Boolean(checked),
+      group_code: groupCode,
+      task_text: taskText,
+    });
+    updateActionItems(state.currentStageCode);
+    renderWorkflowSurfaces();
   } catch (error) {
     console.error(error);
     setFormStatus(`Unable to save task update: ${error.message}`, "error");
@@ -451,22 +446,28 @@ async function loadPersistedTaskStates() {
   try {
     resetTaskRowsToBase();
     const states = await listTaskStates();
+    state.taskStates = new Map(states.map((row) => [row.task_key, row]));
     if (!states.length) {
+      updateActionItems(state.currentStageCode);
       updateInternalSnapshotStats();
       return;
     }
 
-    const stateByKey = new Map(states.map((state) => [state.task_key, state]));
     document.querySelectorAll(".task-row").forEach((taskRow) => {
       const taskKey = taskRow.dataset.taskKey;
-      if (!taskKey || !stateByKey.has(taskKey)) return;
-      const rowState = stateByKey.get(taskKey);
+      if (!taskKey || !state.taskStates.has(taskKey)) return;
+      const rowState = state.taskStates.get(taskKey);
       applyTaskRowState(taskRow, Boolean(rowState.is_complete));
     });
+    updateActionItems(state.currentStageCode);
     updateInternalSnapshotStats();
+    renderWorkflowSurfaces();
   } catch (error) {
     console.warn("Unable to load saved task states:", error.message);
+    state.taskStates = new Map();
+    updateActionItems(state.currentStageCode);
     updateInternalSnapshotStats();
+    renderWorkflowSurfaces();
   }
 }
 
@@ -479,22 +480,6 @@ function formatDate(dateValue) {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function hasSubmittedIntake(context = null, payload = null) {
-  if (payload && typeof payload === "object" && Object.keys(payload).length > 0) {
-    return true;
-  }
-  const status = context?.status || "";
-  return ["submitted", "resubmitted", "in_review", "approved"].includes(status);
-}
-
-function deriveDisplayStage(stageCode, context = null, payload = null) {
-  const normalized = STAGE_SEQUENCE.includes(stageCode) ? stageCode : "intake_form";
-  if (normalized === "intake_form" && hasSubmittedIntake(context, payload)) {
-    return "account_access";
-  }
-  return normalized;
 }
 
 function getActionTurnLabel() {
@@ -544,15 +529,22 @@ function updateActionItems(stageCode) {
   const rows = actionCard.querySelectorAll(".cl-row");
   if (rows.length < 3) return;
 
-  const currentIndex = Math.max(0, STAGE_SEQUENCE.indexOf(stageCode));
-  const intakeIndex = STAGE_SEQUENCE.indexOf("intake_form");
-  const accessIndex = STAGE_SEQUENCE.indexOf("account_access");
+  const currentIndex = stageIndex(stageCode);
+  const intakeIndex = stageIndex("intake_form");
+  const accessIndex = stageIndex("account_access");
+  const isAccessComplete = Boolean(
+    state.taskStates.get(ACCESS_STEP_COMPLETION_TASK_KEY)?.is_complete
+  );
 
   setActionItemRowState(rows[0], "done");
   setActionItemRowState(rows[1], currentIndex > intakeIndex ? "done" : "now");
   setActionItemRowState(
     rows[2],
-    currentIndex > accessIndex ? "done" : currentIndex === accessIndex ? "now" : "pending"
+    currentIndex > accessIndex || isAccessComplete
+      ? "done"
+      : currentIndex === accessIndex
+        ? "now"
+        : "pending"
   );
 }
 
@@ -562,8 +554,8 @@ function updateInternalSnapshotStats() {
   const openP11TasksEl = document.getElementById("snapshotOpenP11Tasks");
   const completedTasksEl = document.getElementById("snapshotCompletedTasks");
 
-  const stageIndex = Math.max(0, STAGE_SEQUENCE.indexOf(state.currentStageCode));
-  const stageCompleteLabel = `${stageIndex + 1}/${STAGE_SEQUENCE.length}`;
+  const currentStageIndex = stageIndex(state.currentStageCode);
+  const stageCompleteLabel = `${currentStageIndex + 1}/${STAGE_SEQUENCE.length}`;
   if (stagesCompleteEl) stagesCompleteEl.textContent = stageCompleteLabel;
 
   const rows = Array.from(document.querySelectorAll(".task-row"));
@@ -613,7 +605,7 @@ function updateContinueOnboardingCta(stageCode) {
 }
 
 function updateStageNavigationInteractivity(stageCode) {
-  const currentIndex = Math.max(0, STAGE_SEQUENCE.indexOf(stageCode));
+  const currentIndex = stageIndex(stageCode);
   const stages = Array.from(document.querySelectorAll(".tracker .stage"));
   stages.forEach((stageEl, index) => {
     stageEl.dataset.stageCode = STAGE_SEQUENCE[index] || "";
@@ -629,8 +621,8 @@ function initializeStageNavigation() {
     stageEl.dataset.stageCode = STAGE_SEQUENCE[index] || "";
     stageEl.addEventListener("click", () => {
       const targetStage = stageEl.dataset.stageCode;
-      const currentIndex = Math.max(0, STAGE_SEQUENCE.indexOf(state.currentStageCode));
-      const targetIndex = Math.max(0, STAGE_SEQUENCE.indexOf(targetStage));
+      const currentIndex = stageIndex(state.currentStageCode);
+      const targetIndex = stageIndex(targetStage);
       if (targetIndex > currentIndex) return;
       navigateToStageSection(targetStage);
     });
@@ -638,8 +630,8 @@ function initializeStageNavigation() {
 }
 
 function applyStage(stageCode) {
-  const normalizedStage = STAGE_SEQUENCE.includes(stageCode) ? stageCode : "intake_form";
-  const idx = Math.max(0, STAGE_SEQUENCE.indexOf(normalizedStage));
+  const normalizedStage = normalizeStage(stageCode, "intake_form");
+  const idx = stageIndex(normalizedStage);
   state.currentStageCode = normalizedStage;
   const dots = Array.from(document.querySelectorAll(".stage-dot"));
   const names = Array.from(document.querySelectorAll(".stage-name"));
@@ -670,7 +662,7 @@ function applyStage(stageCode) {
     if (i === idx) connector.classList.add("active");
   });
 
-  const copy = STAGE_COPY[normalizedStage] || STAGE_COPY.intake_form;
+  const copy = getStageCopy(normalizedStage, "intake_form");
   const stepTitle = document.getElementById("stepTitle");
   const stepText = document.getElementById("stepText");
   if (stepTitle) stepTitle.textContent = copy.title;
@@ -791,23 +783,11 @@ function applyServiceConfigValues(serviceConfigs = {}) {
 
   setIfPresent("seo", "Primary SEO goals", "primary_goals");
   setIfPresent("display", "Monthly Display Budget", "monthly_budget");
-  setIfPresent("display", "Primary remarketing focus", "remarketing_focus");
   setIfPresent("email_marketing", "Email platform (if existing)", "email_platform");
   setIfPresent("email_marketing", "Approximate existing list size", "list_size");
   setIfPresent("email_marketing", "Email frequency & goals", "email_goals");
   setIfPresent("ctv", "Monthly CTV Budget", "monthly_budget");
   setIfPresent("ctv", "Video assets available?", "video_assets_status");
-  setIfPresent("reporting_analytics", "Report frequency", "report_frequency");
-  setIfPresent(
-    "reporting_analytics",
-    "Report delivery preference",
-    "report_delivery_preference"
-  );
-  setIfPresent(
-    "reporting_analytics",
-    "Key metrics you care most about",
-    "key_metrics"
-  );
 
   const ilsPlatforms = serviceConfigs?.ils_management?.ils_platforms;
   if (Array.isArray(ilsPlatforms)) {
@@ -953,6 +933,8 @@ async function hydrateLatestSubmissionForActiveCommunity() {
 
   state.latestSubmissionPayload = payload;
   hydrateFormFromPayload(payload);
+  loadWorkflowState();
+  renderWorkflowSurfaces();
   const stage = deriveDisplayStage(
     state.portalContext?.current_stage,
     state.portalContext,
@@ -963,12 +945,7 @@ async function hydrateLatestSubmissionForActiveCommunity() {
 
 function updateTeamToggleAccess(context) {
   const isInternalRole = ["internal", "admin"].includes(context?.portal_role || "");
-  document.body.classList.toggle("internal-user", isInternalRole);
-  const homeLink = document.getElementById("dashboardHomeLink");
-  if (homeLink) {
-    homeLink.setAttribute("href", isInternalRole ? "/internal.html" : "/client-home.html");
-    homeLink.classList.toggle("internal-home-link-active", isInternalRole);
-  }
+  applyRoleChrome(context, { homeLinkId: "dashboardHomeLink" });
 
   const teamToggleBtn = document.getElementById("teamToggleBtn");
   if (teamToggleBtn) {
@@ -1036,6 +1013,432 @@ function renderQuickLinks(links = []) {
   }).join("");
 }
 
+function getDashboardLink(systemCode) {
+  const code = String(systemCode || "").trim().toLowerCase();
+  const row = state.dashboardResources.links.find(
+    (link) => String(link?.system_code || "").trim().toLowerCase() === code
+  );
+  return sanitizeUrl(row?.external_url || "");
+}
+
+function getWorkflowStorageKey() {
+  const userId = state.session?.user?.id || "anonymous";
+  const clientId = state.portalContext?.onboarding_client_id || "new";
+  return `${LAUNCH_WORKFLOW_KEY_PREFIX}:${userId}:${clientId}`;
+}
+
+function getWorkflowPlatforms() {
+  const byCode = new Map();
+  const payload = state.latestSubmissionPayload || {};
+  const selectedServices = Array.isArray(payload.selected_services)
+    ? payload.selected_services
+    : [];
+
+  selectedServices.forEach((serviceCode) => {
+    const platform = SERVICE_PLATFORM_MAP[serviceCode];
+    if (platform) byCode.set(platform.code, platform);
+  });
+
+  const requestedPlatforms = Array.isArray(payload.platform_access)
+    ? payload.platform_access.filter((platform) => platform?.requested)
+    : [];
+  requestedPlatforms.forEach((platform) => {
+    const code = platform.platform_code || slugify(platform.platform_label || "platform");
+    const label = platform.platform_label || platform.platform_code || "Platform";
+    byCode.set(code, { code, label });
+  });
+
+  if (!byCode.size) {
+    ["google_ads", "meta_ads"].forEach((code) => {
+      const fallback = code === "google_ads"
+        ? { code, label: "Google Ads" }
+        : { code, label: "Meta Ads" };
+      byCode.set(code, fallback);
+    });
+  }
+
+  return Array.from(byCode.values()).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function defaultWorkflowState() {
+  const platforms = {};
+  getWorkflowPlatforms().forEach((platform) => {
+    platforms[platform.code] = {
+      label: platform.label,
+      buildStatus: "Not Started",
+      liveStatus: "In Progress",
+      previewUrl: "",
+      notes: "",
+    };
+  });
+  return {
+    platforms,
+    approvalStatus: "pending",
+    approvalNotes: "",
+    launchAuthorized: false,
+    launchAuthorizedAt: null,
+    launchDate: "",
+    reportingCallUrl: "",
+    reportingLinkUrl: getDashboardLink("looker_report") || "",
+    nextSteps: "P11creative will monitor initial launch performance and schedule the first monthly reporting analysis call.",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function mergeWorkflowState(saved = null) {
+  const base = defaultWorkflowState();
+  if (!saved || typeof saved !== "object") return base;
+  const merged = {
+    ...base,
+    ...saved,
+    platforms: { ...base.platforms },
+  };
+  Object.entries(saved.platforms || {}).forEach(([code, platform]) => {
+    merged.platforms[code] = {
+      ...(merged.platforms[code] || { label: platform?.label || toStageLabel(code) }),
+      ...platform,
+    };
+  });
+  return merged;
+}
+
+function loadWorkflowState() {
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(getWorkflowStorageKey()) || "null");
+  } catch (_error) {
+    saved = null;
+  }
+  state.launchWorkflow = mergeWorkflowState(saved);
+  return state.launchWorkflow;
+}
+
+function saveWorkflowState() {
+  if (!state.launchWorkflow) return;
+  state.launchWorkflow.updatedAt = new Date().toISOString();
+  try {
+    localStorage.setItem(getWorkflowStorageKey(), JSON.stringify(state.launchWorkflow));
+  } catch (error) {
+    console.warn("Unable to save launch workflow state:", error.message);
+  }
+}
+
+function workflowStatusClass(value = "") {
+  const normalized = String(value).toLowerCase();
+  if (normalized.includes("live")) return "live";
+  if (normalized.includes("approved")) return "approved";
+  if (normalized.includes("blocked")) return "blocked";
+  if (normalized.includes("revision")) return "revisions";
+  if (normalized.includes("authorized")) return "authorized";
+  return "";
+}
+
+function prelaunchProgress() {
+  const rows = Array.from(document.querySelectorAll(".task-row.pre-launch"));
+  const total = rows.length;
+  const complete = rows.filter((row) => row.querySelector(".task-cb")?.checked).length;
+  return {
+    total,
+    complete,
+    isReady: total > 0 && complete === total,
+  };
+}
+
+function renderWorkflowSurfaces() {
+  const workflow = state.launchWorkflow || loadWorkflowState();
+  const platforms = Object.entries(workflow.platforms || {}).map(([code, platform]) => ({
+    code,
+    ...platform,
+  }));
+  renderClientWorkflow(workflow, platforms);
+  renderInternalWorkflow(workflow, platforms);
+  updateWorkflowStagePresentation(workflow, platforms);
+}
+
+function updateWorkflowStagePresentation(workflow, platforms) {
+  const currentIndex = stageIndex(state.currentStageCode || "intake_form");
+  if (workflow.launchAuthorized) {
+    applyStage("go_live");
+    return;
+  }
+  const progress = prelaunchProgress();
+  if (progress.isReady && workflow.approvalStatus === "approved") {
+    applyStage("prelaunch_review");
+    return;
+  }
+  const hasBuildStarted = platforms.some((platform) =>
+    ["Building", "Ready for Review", "Approved", "Live", "In Progress"].includes(platform.buildStatus)
+  );
+  if (hasBuildStarted && currentIndex >= stageIndex("creative_kickoff")) {
+    applyStage("campaign_build");
+  }
+}
+
+function previewLinkMarkup(url) {
+  const safeUrl = sanitizeUrl(url);
+  return safeUrl
+    ? `<a class="workflow-link" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">Open Preview</a>`
+    : `<span style="color:var(--gray-light);font-weight:800;">Preview pending</span>`;
+}
+
+function renderClientWorkflow(workflow, platforms) {
+  const buildList = document.getElementById("clientCampaignBuildList");
+  const prelaunch = document.getElementById("clientPrelaunchSummary");
+  const goLive = document.getElementById("clientGoLiveSummary");
+  const approvalNotes = document.getElementById("clientApprovalNotes");
+  if (approvalNotes && approvalNotes.value !== workflow.approvalNotes) {
+    approvalNotes.value = workflow.approvalNotes || "";
+  }
+
+  if (buildList) {
+    buildList.innerHTML = platforms.length
+      ? platforms.map((platform) => `
+        <div class="workflow-card-row">
+          <div>
+            <div class="workflow-name">${escapeHtml(platform.label)}</div>
+            <div class="workflow-meta">${previewLinkMarkup(platform.previewUrl)}</div>
+          </div>
+          <span class="workflow-status ${workflowStatusClass(platform.buildStatus)}">${escapeHtml(platform.buildStatus || "Not Started")}</span>
+        </div>
+      `).join("")
+      : `<div class="workflow-empty">Platform build items will appear after services/platforms are selected.</div>`;
+  }
+
+  const approvalLabel = workflow.approvalStatus === "approved"
+    ? "Approved"
+    : workflow.approvalStatus === "revisions"
+      ? "Revisions Requested"
+      : "Awaiting Review";
+  const progress = prelaunchProgress();
+  if (prelaunch) {
+    prelaunch.innerHTML = `
+      <div class="workflow-card-list">
+        <div class="workflow-card-row">
+          <div>
+            <div class="workflow-name">Client Preview Approval</div>
+            <div class="workflow-meta">${escapeHtml(workflow.approvalNotes || "No feedback submitted yet.")}</div>
+          </div>
+          <span class="workflow-status ${workflowStatusClass(workflow.approvalStatus)}">${approvalLabel}</span>
+        </div>
+        <div class="workflow-card-row">
+          <div>
+            <div class="workflow-name">P11 Pre-Launch QA</div>
+            <div class="workflow-meta">${progress.complete}/${progress.total || 0} critical QA items complete.</div>
+          </div>
+          <span class="workflow-status ${progress.isReady ? "approved" : ""}">${progress.isReady ? "Ready" : "In Review"}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  if (goLive) {
+    goLive.innerHTML = `
+      <div class="workflow-card-list">
+        ${platforms.map((platform) => `
+          <div class="workflow-card-row">
+            <div class="workflow-name">${escapeHtml(platform.label)}</div>
+            <span class="workflow-status ${workflowStatusClass(platform.liveStatus)}">${escapeHtml(platform.liveStatus || "In Progress")}</span>
+          </div>
+        `).join("")}
+        <div class="workflow-card-row">
+          <div>
+            <div class="workflow-name">Launch Date</div>
+            <div class="workflow-meta">${escapeHtml(workflow.launchDate || state.portalContext?.target_go_live_at || "TBD")}</div>
+          </div>
+          <span class="workflow-status ${workflow.launchAuthorized ? "authorized" : ""}">${workflow.launchAuthorized ? "Authorized" : "Pending"}</span>
+        </div>
+        <div class="workflow-empty">
+          ${escapeHtml(workflow.nextSteps || "P11creative will schedule monthly reporting analysis after launch.")}
+          ${sanitizeUrl(workflow.reportingCallUrl) ? `<br><a class="workflow-link" href="${escapeHtml(sanitizeUrl(workflow.reportingCallUrl))}" target="_blank" rel="noopener noreferrer">Schedule Reporting Call</a>` : ""}
+          ${sanitizeUrl(workflow.reportingLinkUrl) ? `<br><a class="workflow-link" href="${escapeHtml(sanitizeUrl(workflow.reportingLinkUrl))}" target="_blank" rel="noopener noreferrer">Open Reporting</a>` : ""}
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderInternalWorkflow(workflow, platforms) {
+  const build = document.getElementById("internalCampaignBuildControls");
+  const prelaunch = document.getElementById("internalPrelaunchControls");
+  const goLive = document.getElementById("internalGoLiveControls");
+  if (build) {
+    build.innerHTML = platforms.map((platform) => `
+      <div class="workflow-card-row" data-workflow-platform="${escapeHtml(platform.code)}">
+        <div>
+          <div class="workflow-name">${escapeHtml(platform.label)}</div>
+          <div class="workflow-controls" style="margin-top:8px;">
+            <label>Status
+              <select data-workflow-field="buildStatus">
+                ${PLATFORM_WORKFLOW_OPTIONS.map((option) => `<option value="${escapeHtml(option)}" ${option === platform.buildStatus ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+              </select>
+            </label>
+            <label>Preview Link
+              <input data-workflow-field="previewUrl" type="url" value="${escapeHtml(platform.previewUrl || "")}" placeholder="https://..." />
+            </label>
+            <label>Build Notes
+              <textarea data-workflow-field="notes" rows="2" placeholder="Blockers, owner notes, client context...">${escapeHtml(platform.notes || "")}</textarea>
+            </label>
+          </div>
+        </div>
+        <span class="workflow-status ${workflowStatusClass(platform.buildStatus)}">${escapeHtml(platform.buildStatus || "Not Started")}</span>
+      </div>
+    `).join("");
+  }
+
+  const progress = prelaunchProgress();
+  if (prelaunch) {
+    prelaunch.innerHTML = `
+      <div class="workflow-card-list">
+        <div class="workflow-card-row">
+          <div>
+            <div class="workflow-name">Critical QA Completion</div>
+            <div class="workflow-meta">${progress.complete}/${progress.total || 0} pre-launch QA items checked.</div>
+          </div>
+          <span class="workflow-status ${progress.isReady ? "approved" : ""}">${progress.isReady ? "Ready" : "Needs QA"}</span>
+        </div>
+        <div class="workflow-card-row">
+          <div>
+            <div class="workflow-name">Client Approval</div>
+            <div class="workflow-meta">${escapeHtml(workflow.approvalNotes || "No client approval notes yet.")}</div>
+          </div>
+          <span class="workflow-status ${workflowStatusClass(workflow.approvalStatus)}">${escapeHtml(workflow.approvalStatus || "pending")}</span>
+        </div>
+      </div>
+      <div class="workflow-actions">
+        <button class="workflow-btn primary" type="button" data-workflow-action="authorize_launch" ${progress.isReady ? "" : "disabled"}>Authorize Launch</button>
+        <button class="workflow-btn" type="button" data-workflow-action="reset_launch">Reset Authorization</button>
+      </div>
+    `;
+  }
+
+  if (goLive) {
+    goLive.innerHTML = `
+      <div class="workflow-controls">
+        <label>Launch Date
+          <input id="workflowLaunchDate" type="date" value="${escapeHtml(workflow.launchDate || state.portalContext?.target_go_live_at || "")}" />
+        </label>
+        <label>Monthly Reporting Call Link
+          <input id="workflowReportingCallUrl" type="url" value="${escapeHtml(workflow.reportingCallUrl || "")}" placeholder="https://calendar.google.com/..." />
+        </label>
+        <label>Reporting Link
+          <input id="workflowReportingLinkUrl" type="url" value="${escapeHtml(workflow.reportingLinkUrl || "")}" placeholder="https://lookerstudio.google.com/..." />
+        </label>
+        <label>Client Next Steps
+          <textarea id="workflowNextSteps" rows="3">${escapeHtml(workflow.nextSteps || "")}</textarea>
+        </label>
+      </div>
+      <div class="workflow-card-list" style="margin-top:10px;">
+        ${platforms.map((platform) => `
+          <div class="workflow-card-row" data-workflow-platform="${escapeHtml(platform.code)}">
+            <div class="workflow-name">${escapeHtml(platform.label)}</div>
+            <select data-workflow-field="liveStatus">
+              ${PLATFORM_WORKFLOW_OPTIONS.map((option) => `<option value="${escapeHtml(option)}" ${option === platform.liveStatus ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+            </select>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  bindWorkflowHandlers();
+}
+
+function updateWorkflowFromInput(input) {
+  const workflow = state.launchWorkflow || loadWorkflowState();
+  const platformEl = input.closest("[data-workflow-platform]");
+  const field = input.dataset.workflowField;
+  if (!field) return;
+  if (platformEl) {
+    const code = platformEl.dataset.workflowPlatform;
+    workflow.platforms[code] = {
+      ...(workflow.platforms[code] || { label: code }),
+      [field]: input.value,
+    };
+  }
+  saveWorkflowState();
+  renderWorkflowSurfaces();
+}
+
+function bindWorkflowHandlers() {
+  document.querySelectorAll("[data-workflow-field]").forEach((input) => {
+    if (input.dataset.bound === "true") return;
+    input.dataset.bound = "true";
+    input.addEventListener("change", () => updateWorkflowFromInput(input));
+  });
+
+  const workflow = state.launchWorkflow || loadWorkflowState();
+  const launchDate = document.getElementById("workflowLaunchDate");
+  if (launchDate && launchDate.dataset.bound !== "true") {
+    launchDate.dataset.bound = "true";
+    launchDate.addEventListener("change", () => {
+      workflow.launchDate = launchDate.value;
+      saveWorkflowState();
+      renderWorkflowSurfaces();
+    });
+  }
+  const reportingCall = document.getElementById("workflowReportingCallUrl");
+  if (reportingCall && reportingCall.dataset.bound !== "true") {
+    reportingCall.dataset.bound = "true";
+    reportingCall.addEventListener("change", () => {
+      workflow.reportingCallUrl = reportingCall.value.trim();
+      saveWorkflowState();
+      renderWorkflowSurfaces();
+    });
+  }
+  const reportingLink = document.getElementById("workflowReportingLinkUrl");
+  if (reportingLink && reportingLink.dataset.bound !== "true") {
+    reportingLink.dataset.bound = "true";
+    reportingLink.addEventListener("change", () => {
+      workflow.reportingLinkUrl = reportingLink.value.trim();
+      saveWorkflowState();
+      renderWorkflowSurfaces();
+    });
+  }
+  const nextSteps = document.getElementById("workflowNextSteps");
+  if (nextSteps && nextSteps.dataset.bound !== "true") {
+    nextSteps.dataset.bound = "true";
+    nextSteps.addEventListener("change", () => {
+      workflow.nextSteps = nextSteps.value.trim();
+      saveWorkflowState();
+      renderWorkflowSurfaces();
+    });
+  }
+}
+
+function bindWorkflowActionHandlers() {
+  document.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-workflow-action]");
+    if (!actionButton) return;
+    const workflow = state.launchWorkflow || loadWorkflowState();
+    const action = actionButton.dataset.workflowAction;
+
+    if (action === "approve_previews" || action === "request_revisions") {
+      const notes = document.getElementById("clientApprovalNotes")?.value?.trim() || "";
+      workflow.approvalStatus = action === "approve_previews" ? "approved" : "revisions";
+      workflow.approvalNotes = notes;
+    }
+
+    if (action === "authorize_launch") {
+      workflow.launchAuthorized = true;
+      workflow.launchAuthorizedAt = new Date().toISOString();
+      workflow.launchDate = workflow.launchDate || state.portalContext?.target_go_live_at || "";
+      Object.values(workflow.platforms || {}).forEach((platform) => {
+        if (!platform.liveStatus || platform.liveStatus === "In Progress") {
+          platform.liveStatus = "Live";
+        }
+      });
+    }
+
+    if (action === "reset_launch") {
+      workflow.launchAuthorized = false;
+      workflow.launchAuthorizedAt = null;
+    }
+
+    saveWorkflowState();
+    renderWorkflowSurfaces();
+  });
+}
+
 async function loadDashboardResources() {
   try {
     const resources = await getMyDashboardResources();
@@ -1049,6 +1452,7 @@ async function loadDashboardResources() {
   }
   renderTeamAssignments(state.dashboardResources.assignments);
   renderQuickLinks(state.dashboardResources.links);
+  loadDropboxFolderForActiveCommunity().catch(() => {});
 }
 
 function buildCommunityOptionLabel(community) {
@@ -1062,9 +1466,7 @@ function buildCommunityOptionLabel(community) {
     community,
     community.last_submitted_at ? { has_submission: true } : null
   );
-  const stage = String(displayStage)
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  const stage = toStageLabel(displayStage);
   const baseName = isNascent
     ? "Onboard"
     : community.community_name || "Unnamed Community";
@@ -1133,6 +1535,7 @@ async function switchActiveCommunity(onboardingClientId) {
     await refreshCommunitySwitcher(context.onboarding_client_id);
     await loadPersistedTaskStates();
     await hydrateLatestSubmissionForActiveCommunity();
+    loadSavedIntakeDraft();
   } finally {
     state.switchingCommunity = false;
   }
@@ -1170,6 +1573,86 @@ function getSelectedBrandAssetFiles() {
   const input = document.getElementById("assetInput");
   if (!input?.files?.length) return [];
   return Array.from(input.files);
+}
+
+async function uploadBrandAssetsToDropbox({
+  onboardingClientId,
+  files = [],
+  onProgress = null,
+}) {
+  const uploaded = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (typeof onProgress === "function") {
+      try {
+        onProgress(i, files.length, file.name);
+      } catch (_error) {
+        // Non-fatal.
+      }
+    }
+    const result = await uploadFileToDropbox({ onboardingClientId, file });
+    const uploadedFile = result?.file || {};
+    uploaded.push({
+      file_name: file.name,
+      mime_type: file.type || null,
+      file_size_bytes: file.size || null,
+      storage_path: null,
+      external_url: uploadedFile.path_display || null,
+      metadata_json: {
+        source: "dropbox",
+        dropbox_id: uploadedFile.id || null,
+        dropbox_path_lower: uploadedFile.path_lower || null,
+        dropbox_content_hash: uploadedFile.content_hash || null,
+        folder_shared_link: result?.folder?.shared_link_url || null,
+        folder_display_path: result?.folder?.folder_display_path || null,
+      },
+    });
+  }
+  return uploaded;
+}
+
+async function loadDropboxFolderForActiveCommunity() {
+  if (!state.portalContext?.onboarding_client_id) {
+    state.dropboxFolder = null;
+    renderDropboxIntakeNotice();
+    return;
+  }
+  try {
+    const folder = await getMyDropboxFolder();
+    state.dropboxFolder = folder || null;
+  } catch (error) {
+    console.warn("Dropbox folder lookup failed:", error.message);
+    state.dropboxFolder = null;
+  }
+  renderDropboxIntakeNotice();
+}
+
+function renderDropboxIntakeNotice() {
+  const input = document.getElementById("assetInput");
+  if (!input) return;
+  const field = input.closest(".fg") || input.parentElement;
+  if (!field) return;
+
+  const existing = field.querySelector(".dropbox-intake-notice");
+  const folder = state.dropboxFolder;
+  const label = folder
+    ? `Uploads will be saved directly to the P11 Dropbox folder for this community: ${folder.folder_display_path || folder.shared_link_url || "assigned folder"}.`
+    : "Dropbox is not linked for this community yet. Files attached here will use secure portal storage until your account manager links the Dropbox folder.";
+  const tone = folder ? "#1a9e6a" : "#8c5a00";
+
+  if (existing) {
+    existing.classList.toggle("is-linked", Boolean(folder));
+    existing.textContent = label;
+    existing.style.color = tone;
+    return;
+  }
+
+  const notice = document.createElement("div");
+  notice.className = "dropbox-intake-notice";
+  notice.classList.toggle("is-linked", Boolean(folder));
+  notice.textContent = label;
+  notice.style.cssText = `margin-top:6px; font-size:11px; font-weight:700; color:${tone};`;
+  field.appendChild(notice);
 }
 
 function buildPayload({ uploadedAssets = [], submissionKey = null } = {}) {
@@ -1249,6 +1732,63 @@ function setFormStatus(message = "", kind = "") {
   if (!target) return;
   target.className = `auth-message${kind ? ` ${kind}` : ""}`;
   target.textContent = message || "";
+}
+
+function getIntakeDraftKey() {
+  const userId = state.session?.user?.id || "anonymous";
+  const clientId = state.portalContext?.onboarding_client_id || "new";
+  return `${INTAKE_DRAFT_KEY_PREFIX}:${userId}:${clientId}`;
+}
+
+function clearSavedIntakeDraft(draftKey = getIntakeDraftKey()) {
+  try {
+    localStorage.removeItem(draftKey);
+  } catch (_error) {
+    // Non-fatal; submit should not fail if local storage is blocked.
+  }
+}
+
+function getLatestSubmissionTime() {
+  const submittedAt =
+    state.latestSubmissionPayload?.submitted_at_client ||
+    state.latestSubmissionPayload?.submitted_at ||
+    state.portalContext?.last_submitted_at ||
+    null;
+  const time = submittedAt ? new Date(submittedAt).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function saveIntakeDraft() {
+  try {
+    const draft = {
+      updated_at: new Date().toISOString(),
+      payload: buildPayload({ uploadedAssets: [], submissionKey: state.submissionAttemptKey }),
+    };
+    localStorage.setItem(getIntakeDraftKey(), JSON.stringify(draft));
+    setFormStatus("Draft saved on this device. You can return and finish the questionnaire later.", "success");
+  } catch (error) {
+    setFormStatus(`Unable to save draft: ${error.message}`, "error");
+  }
+}
+
+function loadSavedIntakeDraft({ force = false } = {}) {
+  let draft = null;
+  try {
+    draft = JSON.parse(localStorage.getItem(getIntakeDraftKey()) || "null");
+  } catch (_error) {
+    draft = null;
+  }
+  if (!draft?.payload) return false;
+
+  const draftTime = new Date(draft.updated_at || 0).getTime();
+  if (!force && getLatestSubmissionTime() && draftTime <= getLatestSubmissionTime()) {
+    return false;
+  }
+
+  hydrateFormFromPayload(draft.payload);
+  const savedAt = draft.updated_at ? new Date(draft.updated_at).toLocaleString() : "recently";
+  setFormStatus(`Loaded your saved draft from ${savedAt}.`, "success");
+  return true;
 }
 
 function clearRequiredFieldErrors() {
@@ -1622,6 +2162,9 @@ async function hydrateAuthenticatedApp(session) {
     await refreshCommunitySwitcher(context.onboarding_client_id);
     await loadPersistedTaskStates();
     await hydrateLatestSubmissionForActiveCommunity();
+    loadWorkflowState();
+    renderWorkflowSurfaces();
+    loadSavedIntakeDraft();
   } catch (error) {
     console.error("Unable to hydrate authenticated app:", error);
     showAuthRoot();
@@ -1767,6 +2310,7 @@ async function handleCompleteSubmit(event) {
       await refreshCommunitySwitcher(context.onboarding_client_id);
       await loadPersistedTaskStates();
       await hydrateLatestSubmissionForActiveCommunity();
+      loadSavedIntakeDraft();
     }
   } catch (error) {
     setAuthMessage("completeMessage", error.message, "error");
@@ -1780,6 +2324,7 @@ async function bootstrapAuth() {
   logoutBtn?.addEventListener("click", async () => {
     try {
       await signOutUser();
+      window.location.href = "/client-home.html";
     } catch (error) {
       setFormStatus(error.message, "error");
     }
@@ -1980,8 +2525,9 @@ async function submitForm() {
     return;
   }
 
-  const submitButton = document.querySelector(".submit-btn");
+  const submitButton = document.getElementById("submitQuestionnaireBtn");
   const originalLabel = submitButton?.textContent || "Submit";
+  const draftKeyAtSubmit = getIntakeDraftKey();
   if (!state.submissionAttemptKey) {
     state.submissionAttemptKey = createSubmissionAttemptKey();
   }
@@ -1997,11 +2543,27 @@ async function submitForm() {
     let uploadedAssets = [];
     if (brandAssetFiles.length && state.portalContext?.onboarding_client_id) {
       if (submitButton) submitButton.textContent = "Uploading assets...";
-      setFormStatus("Uploading brand assets...", "");
-      uploadedAssets = await uploadBrandAssets({
-        onboardingClientId: state.portalContext.onboarding_client_id,
-        files: brandAssetFiles,
-      });
+      const onboardingClientId = state.portalContext.onboarding_client_id;
+      const useDropbox = Boolean(state.dropboxFolder?.shared_link_url || state.dropboxFolder);
+      if (useDropbox) {
+        setFormStatus("Uploading brand assets to Dropbox...", "");
+        uploadedAssets = await uploadBrandAssetsToDropbox({
+          onboardingClientId,
+          files: brandAssetFiles,
+          onProgress: (index, total, fileName) => {
+            setFormStatus(
+              `Uploading to Dropbox (${index + 1} of ${total}): ${fileName}...`,
+              ""
+            );
+          },
+        });
+      } else {
+        setFormStatus("Uploading brand assets...", "");
+        uploadedAssets = await uploadBrandAssets({
+          onboardingClientId,
+          files: brandAssetFiles,
+        });
+      }
       if (submitButton) submitButton.textContent = "Submitting...";
       setFormStatus("Assets uploaded. Finalizing submission...", "");
     }
@@ -2042,7 +2604,14 @@ async function submitForm() {
       }. You can now select Continue Onboarding to finish platform access.`,
       "success"
     );
+    clearSavedIntakeDraft(draftKeyAtSubmit);
+    clearSavedIntakeDraft();
     state.submissionAttemptKey = null;
+    const thankYouUrl = new URL("/p11-onboarding-thank-you.html", window.location.origin);
+    if (result?.onboarding_client_id) {
+      thankYouUrl.searchParams.set("clientId", String(result.onboarding_client_id));
+    }
+    window.location.href = thankYouUrl.toString();
   } catch (error) {
     console.error(error);
     setFormStatus(`Submission failed: ${error.message}`, "error");
@@ -2064,6 +2633,7 @@ async function bootstrapFromRemote() {
     applySnapshot(snapshot);
     await loadPersistedTaskStates();
     await hydrateLatestSubmissionForActiveCommunity();
+    loadSavedIntakeDraft();
   } catch (error) {
     console.warn("Unable to load remote onboarding snapshot:", error.message);
   }
@@ -2112,6 +2682,7 @@ function maybePrepareForNewCommunity() {
 }
 
 function initialize() {
+  renderNotice(consumeRedirectNotice());
   initializeViewToggle();
   renderTeamAssignments([]);
   renderQuickLinks([]);
@@ -2121,6 +2692,7 @@ function initialize() {
   initializeTaskRows();
   initializeTaskSyncHandlers();
   initializeCommunitySwitcher();
+  bindWorkflowActionHandlers();
   calcProg();
   bootstrapAuth().then(async () => {
     if (state.session) {
@@ -2138,5 +2710,6 @@ window.calcProg = calcProg;
 window.setGoLive = setGoLive;
 window.showFiles = showFiles;
 window.submitForm = submitForm;
+window.saveIntakeDraft = saveIntakeDraft;
 
 document.addEventListener("DOMContentLoaded", initialize);

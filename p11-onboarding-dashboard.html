@@ -508,6 +508,151 @@ select.fi { cursor: pointer; }
 .s-done { background: var(--green-bg); color: var(--green); }
 .s-prog { background: var(--amber-bg); color: var(--amber); }
 
+/* step 5-7 workflow */
+.workflow-section {
+  margin-bottom: 24px;
+}
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.workflow-panel {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.workflow-panel.full {
+  grid-column: 1 / -1;
+}
+.workflow-title {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--charcoal);
+  margin-bottom: 8px;
+}
+.workflow-copy {
+  font-size: 12px;
+  color: var(--gray);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.workflow-card-list {
+  display: grid;
+  gap: 8px;
+}
+.workflow-card-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.workflow-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--charcoal);
+}
+.workflow-meta {
+  font-size: 11px;
+  color: var(--gray);
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.workflow-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--amber-bg);
+  color: var(--amber);
+  white-space: nowrap;
+}
+.workflow-status.live,
+.workflow-status.approved,
+.workflow-status.authorized {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.workflow-status.blocked,
+.workflow-status.revisions {
+  background: rgba(250,70,20,0.09);
+  color: var(--red);
+}
+.workflow-controls {
+  display: grid;
+  gap: 9px;
+}
+.workflow-controls label {
+  display: grid;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray);
+}
+.workflow-controls input,
+.workflow-controls select,
+.workflow-controls textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  background: white;
+  color: var(--charcoal);
+}
+.workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.workflow-btn {
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--charcoal);
+  border-radius: 7px;
+  padding: 8px 11px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.workflow-btn.primary {
+  border-color: var(--red);
+  background: var(--red);
+  color: white;
+}
+.workflow-link {
+  color: var(--red);
+  font-weight: 800;
+  text-decoration: none;
+}
+.workflow-empty {
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--gray);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 /* view control */
 [data-view="internal"] { display: none; }
 body.int [data-view="client"]   { display: none; }
@@ -731,6 +876,7 @@ body.auth-pending .auth-root {
   .auth-shell { grid-template-columns: 1fr; }
 }
 </style>
+<link rel="stylesheet" href="/frontend/src/styles/shared.css" />
 </head>
 <body class="auth-pending">
 
@@ -749,6 +895,7 @@ body.auth-pending .auth-root {
     <nav class="header-nav" aria-label="App Navigation">
       <a class="header-nav-link home-link" id="dashboardHomeLink" href="/client-home.html">Home</a>
       <a class="header-nav-link active client-only-nav" href="/p11-onboarding-dashboard.html">Dashboard</a>
+      <a class="header-nav-link client-only-nav" href="/p11-onboarding-account-access.html">Account Access</a>
       <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-automation-flow.html">Automation Flow</a>
       <a class="header-nav-link internal-only-nav" data-internal-only="true" href="/p11-onboarding-project-brief.html">Project Brief</a>
     </nav>
@@ -809,7 +956,7 @@ body.auth-pending .auth-root {
       <div class="connector" id="c3"></div>
       <div class="stage">
         <div class="stage-dot" id="s4">4</div>
-        <div class="stage-name" id="sn4">Creative<br>Kickoff</div>
+        <div class="stage-name" id="sn4">Creative<br>Development</div>
       </div>
       <div class="connector" id="c4"></div>
       <div class="stage">
@@ -906,6 +1053,37 @@ body.auth-pending .auth-root {
         </div>
       </div>
     </div>
+
+    <section class="workflow-section">
+      <div class="section-label">Steps 5-7 Launch Workflow</div>
+      <div class="workflow-grid">
+        <div class="workflow-panel full">
+          <div class="workflow-title">Step 5 - Campaign Build &amp; Preview</div>
+          <div class="workflow-copy">
+            Track each platform build, review preview links, and approve or request revisions before launch.
+          </div>
+          <div id="clientCampaignBuildList" class="workflow-card-list"></div>
+          <div class="workflow-controls" style="margin-top:12px;">
+            <label>
+              Client Feedback
+              <textarea id="clientApprovalNotes" rows="3" placeholder="Leave feedback, approval notes, or revision requests for P11creative."></textarea>
+            </label>
+          </div>
+          <div class="workflow-actions">
+            <button class="workflow-btn primary" type="button" data-workflow-action="approve_previews">Approve Previews</button>
+            <button class="workflow-btn" type="button" data-workflow-action="request_revisions">Request Revisions</button>
+          </div>
+        </div>
+        <div class="workflow-panel">
+          <div class="workflow-title">Step 6 - Pre-Launch Review</div>
+          <div id="clientPrelaunchSummary"></div>
+        </div>
+        <div class="workflow-panel">
+          <div class="workflow-title">Step 7 - Go Live</div>
+          <div id="clientGoLiveSummary"></div>
+        </div>
+      </div>
+    </section>
 
     <!-- ─── QUESTIONNAIRE ─── -->
     <div class="q-card">
@@ -1106,7 +1284,7 @@ body.auth-pending .auth-root {
           <div class="upload-zone" onclick="document.getElementById('assetInput').click()">
             <div class="upload-icon">📁</div>
             <div class="upload-title">Drop files here or click to browse</div>
-            <div class="upload-sub">PDF, PNG, JPG, SVG, MP4, ZIP · Max 500 MB total</div>
+            <div class="upload-sub">PDF, PNG, JPG, SVG, MP4, ZIP · Max 145 MB per file via portal</div>
             <input type="file" id="assetInput" multiple style="display:none" onchange="showFiles(this)">
           </div>
           <div id="fileList" style="margin-top:8px;"></div>
@@ -1128,52 +1306,67 @@ body.auth-pending .auth-root {
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Google Ads Manager</span>
-            <a class="acc-link" href="https://support.google.com/google-ads/answer/6372672" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/google-ads-admin-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Google Analytics 4 (GA4)</span>
-            <a class="acc-link" href="https://www.p11.com/marketing/kb/google-analytics/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/google-analytics/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Google Tag Manager (GTM)</span>
-            <a class="acc-link" href="https://www.p11.com/marketing/kb/add-user-to-gtm-account/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/add-user-to-gtm-account/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Google Search Console</span>
-            <a class="acc-link" href="https://www.p11.com/marketing/kb/search-console/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/search-console/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Google Business Profile</span>
-            <a class="acc-link" href="https://www.p11.com/marketing/kb/business-profile/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/business-profile/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Meta Business Suite / Pages</span>
-            <a class="acc-link" href="https://www.p11.com/marketing/kb/grant-social-media-partner-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/grant-social-media-partner-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Meta Ads Manager</span>
-            <a class="acc-link" href="https://www.p11.com/marketing/kb/grant-social-media-partner-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/grant-social-media-partner-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">LinkedIn Ads</span>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/linkedin-ads-admin-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Email Marketing Platform</span>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/email-marketing-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">Website CMS (login credentials)</span>
-            <span class="acc-link" style="cursor:default; opacity:.4">Username &amp; PW</span>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/website-credentials/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">CRM Platform</span>
-            <span class="acc-link" style="cursor:default; opacity:.4">Specify below</span>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/crm-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
           <div class="acc-item" onclick="toggleAcc(this)">
             <input type="checkbox" class="acc-cb">
             <span class="acc-name">ILS Platform (Zillow / CoStar)</span>
-            <span class="acc-link" style="cursor:default; opacity:.4">If applicable</span>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/ils-access/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
+          </div>
+          <div class="acc-item" onclick="toggleAcc(this)">
+            <input type="checkbox" class="acc-cb">
+            <span class="acc-name">Payment Methods</span>
+            <a class="acc-link" href="https://backstage.p11.com/marketing/kb/payment-method-setup/" target="_blank" onclick="event.stopPropagation()">Guide →</a>
           </div>
         </div>
         <div class="fg full" style="margin-top:13px;">
@@ -1194,7 +1387,6 @@ body.auth-pending .auth-root {
           <div class="svc-chip" onclick="toggleSvc(this,'email')">📧 Email Mktg</div>
           <div class="svc-chip" onclick="toggleSvc(this,'ctv')">📺 CTV</div>
           <div class="svc-chip" onclick="toggleSvc(this,'ils')">🏢 ILS Mgmt</div>
-          <div class="svc-chip" onclick="toggleSvc(this,'reporting')">📊 Reporting</div>
         </div>
 
         <div class="svc-detail" id="svc-ps">
@@ -1233,9 +1425,6 @@ body.auth-pending .auth-root {
           <div class="svc-detail-title">🖼 Display / Remarketing</div>
           <div class="form-grid">
             <div class="fg"><label class="fl">Monthly Display Budget</label><input class="fi" type="text" placeholder="e.g. $1,500/mo"></div>
-            <div class="fg"><label class="fl">Primary remarketing focus</label>
-              <select class="fi"><option>All site visitors</option><option>Floor plan page visitors</option><option>Pricing/availability page visitors</option><option>Custom (specify in notes)</option></select>
-            </div>
           </div>
         </div>
         <div class="svc-detail" id="svc-email">
@@ -1271,20 +1460,6 @@ body.auth-pending .auth-root {
             <label style="display:flex; align-items:center; gap:6px; font-size:12.5px;"><input type="checkbox"> None yet — P11creative will set up</label>
           </div>
         </div>
-        <div class="svc-detail" id="svc-reporting">
-          <div class="svc-detail-title">📊 Reporting &amp; Analytics</div>
-          <div class="form-grid">
-            <div class="fg"><label class="fl">Report frequency</label>
-              <select class="fi"><option>Monthly</option><option>Weekly</option><option>Bi-weekly</option></select>
-            </div>
-            <div class="fg"><label class="fl">Report delivery preference</label>
-              <select class="fi"><option>Email (Looker link)</option><option>Basecamp post</option><option>Both</option></select>
-            </div>
-            <div class="fg full"><label class="fl">Key metrics you care most about</label>
-              <textarea class="fi" placeholder="e.g. Cost per lead, total leads, tours booked, cost per lease, organic traffic, conversion rate..."></textarea>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- §7 Final -->
@@ -1312,7 +1487,26 @@ body.auth-pending .auth-root {
         </div>
       </div>
 
-      <button class="submit-btn" onclick="submitForm()">Submit Questionnaire to P11creative →</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;">
+        <button
+          type="button"
+          class="submit-btn"
+          id="saveDraftBtn"
+          style="width:auto; flex:1; min-width:240px; margin-top:0; background:var(--charcoal);"
+          onclick="saveIntakeDraft()"
+        >
+          Save Draft
+        </button>
+        <button
+          type="button"
+          class="submit-btn"
+          id="submitQuestionnaireBtn"
+          style="width:auto; flex:2; min-width:280px; margin-top:0;"
+          onclick="submitForm()"
+        >
+          Submit Questionnaire to P11creative →
+        </button>
+      </div>
       <div id="submitStatus" class="auth-message" style="margin-top:12px;" aria-live="polite"></div>
     </div>
     <!-- END QUESTIONNAIRE -->
@@ -1343,6 +1537,27 @@ body.auth-pending .auth-root {
         <div id="quickLinksList"></div>
       </div>
     </div>
+
+    <section class="int-section">
+      <div class="card-title" style="margin-bottom:16px;">Steps 5-7 Launch Command Center</div>
+      <div class="workflow-grid">
+        <div class="workflow-panel full">
+          <div class="workflow-title">Step 5 - Campaign Build</div>
+          <div class="workflow-copy">
+            Set build status and preview links for every platform in scope. Client approval status is shown below.
+          </div>
+          <div id="internalCampaignBuildControls" class="workflow-card-list"></div>
+        </div>
+        <div class="workflow-panel">
+          <div class="workflow-title">Step 6 - Launch Authorization</div>
+          <div id="internalPrelaunchControls"></div>
+        </div>
+        <div class="workflow-panel">
+          <div class="workflow-title">Step 7 - Live Status &amp; Next Steps</div>
+          <div id="internalGoLiveControls"></div>
+        </div>
+      </div>
+    </section>
 
     <!-- FULL CHECKLIST -->
     <div class="int-section">

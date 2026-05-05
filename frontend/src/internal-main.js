@@ -11,12 +11,18 @@ import {
   signInUser,
   signOutUser,
 } from "./api.js";
+import { consumeRedirectNotice, renderNotice } from "./navigation.js";
 
 const state = {
   session: null,
   context: null,
   overviewRows: [],
   companyRows: [],
+  overviewPage: 0,
+  overviewPageSize: 50,
+  companyPage: 0,
+  companyPageSize: 50,
+  companyTotal: 0,
   openingCommunityId: null,
   creatingInvite: false,
 };
@@ -172,6 +178,53 @@ function renderOverview(rows) {
   updateStats(rows);
 }
 
+function renderPagination({
+  targetId,
+  page,
+  pageSize,
+  total,
+  onPrev,
+  onNext,
+}) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = total ? page * pageSize + 1 : 0;
+  const end = Math.min(total, (page + 1) * pageSize);
+  target.innerHTML = `
+    <span>Showing ${start}-${end} of ${total}</span>
+    <span class="pagination-actions">
+      <button type="button" data-page-prev ${page <= 0 ? "disabled" : ""}>Previous</button>
+      <span>Page ${page + 1} of ${totalPages}</span>
+      <button type="button" data-page-next ${page >= totalPages - 1 ? "disabled" : ""}>Next</button>
+    </span>
+  `;
+  target.querySelector("[data-page-prev]")?.addEventListener("click", onPrev);
+  target.querySelector("[data-page-next]")?.addEventListener("click", onNext);
+}
+
+function renderOverviewPage() {
+  const start = state.overviewPage * state.overviewPageSize;
+  const rows = state.overviewRows.slice(start, start + state.overviewPageSize);
+  renderOverview(rows);
+  updateStats(state.overviewRows);
+  renderPagination({
+    targetId: "overviewPagination",
+    page: state.overviewPage,
+    pageSize: state.overviewPageSize,
+    total: state.overviewRows.length,
+    onPrev: () => {
+      state.overviewPage = Math.max(0, state.overviewPage - 1);
+      renderOverviewPage();
+    },
+    onNext: () => {
+      const maxPage = Math.max(0, Math.ceil(state.overviewRows.length / state.overviewPageSize) - 1);
+      state.overviewPage = Math.min(maxPage, state.overviewPage + 1);
+      renderOverviewPage();
+    },
+  });
+}
+
 function renderCompanies(rows) {
   const body = document.getElementById("companyBody");
   if (!body) return;
@@ -274,19 +327,36 @@ async function loadOverview() {
     limit: 400,
   });
   state.overviewRows = rows;
-  renderOverview(rows);
+  state.overviewPage = 0;
+  renderOverviewPage();
 }
 
 async function loadCompanies() {
   const search = document.getElementById("companySearchInput")?.value?.trim() || "";
   const response = await internalListCompanies({
     search,
-    limit: 300,
-    offset: 0,
+    limit: state.companyPageSize,
+    offset: state.companyPage * state.companyPageSize,
   });
   const rows = Array.isArray(response?.items) ? response.items : [];
+  state.companyTotal = Number(response?.total_count ?? rows.length);
   state.companyRows = rows;
   renderCompanies(rows);
+  renderPagination({
+    targetId: "companyPagination",
+    page: state.companyPage,
+    pageSize: state.companyPageSize,
+    total: state.companyTotal,
+    onPrev: async () => {
+      state.companyPage = Math.max(0, state.companyPage - 1);
+      await loadCompanies();
+    },
+    onNext: async () => {
+      const maxPage = Math.max(0, Math.ceil(state.companyTotal / state.companyPageSize) - 1);
+      state.companyPage = Math.min(maxPage, state.companyPage + 1);
+      await loadCompanies();
+    },
+  });
 }
 
 async function refreshSyncQueueSummary() {
@@ -450,6 +520,7 @@ function bindHandlers() {
 
   document.getElementById("companyRefreshBtn")?.addEventListener("click", async () => {
     try {
+      state.companyPage = 0;
       await loadCompanies();
     } catch (error) {
       setAuthMessage(error.message, "error");
@@ -485,6 +556,7 @@ function bindHandlers() {
 
   document.getElementById("searchInput")?.addEventListener("input", async () => {
     try {
+      state.overviewPage = 0;
       await loadOverview();
     } catch (error) {
       console.error(error);
@@ -493,6 +565,7 @@ function bindHandlers() {
 
   document.getElementById("stageFilter")?.addEventListener("change", async () => {
     try {
+      state.overviewPage = 0;
       await loadOverview();
     } catch (error) {
       console.error(error);
@@ -514,6 +587,7 @@ function bindHandlers() {
 
   document.getElementById("companySearchInput")?.addEventListener("input", async () => {
     try {
+      state.companyPage = 0;
       await loadCompanies();
     } catch (error) {
       console.error(error);
@@ -549,6 +623,7 @@ function bindHandlers() {
 }
 
 async function initialize() {
+  renderNotice(consumeRedirectNotice());
   bindHandlers();
   const session = await getCurrentSession();
   state.session = session;

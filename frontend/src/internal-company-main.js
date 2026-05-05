@@ -12,6 +12,9 @@ const state = {
   companyName: null,
   loading: false,
   saving: false,
+  communityPage: 0,
+  communityPageSize: 50,
+  communityTotal: 0,
 };
 
 function byId(id) {
@@ -109,6 +112,31 @@ function renderCommunityRows(rows) {
     .join("");
 }
 
+function renderCommunityPagination() {
+  const target = byId("companyCommunityPagination");
+  if (!target) return;
+  const totalPages = Math.max(1, Math.ceil(state.communityTotal / state.communityPageSize));
+  const start = state.communityTotal ? state.communityPage * state.communityPageSize + 1 : 0;
+  const end = Math.min(state.communityTotal, (state.communityPage + 1) * state.communityPageSize);
+  target.innerHTML = `
+    <span>Showing ${start}-${end} of ${state.communityTotal}</span>
+    <span class="pagination-actions">
+      <button type="button" id="companyCommunityPrev" ${state.communityPage <= 0 ? "disabled" : ""}>Previous</button>
+      <span>Page ${state.communityPage + 1} of ${totalPages}</span>
+      <button type="button" id="companyCommunityNext" ${state.communityPage >= totalPages - 1 ? "disabled" : ""}>Next</button>
+    </span>
+  `;
+  byId("companyCommunityPrev")?.addEventListener("click", async () => {
+    state.communityPage = Math.max(0, state.communityPage - 1);
+    await loadCompanyCommunities();
+  });
+  byId("companyCommunityNext")?.addEventListener("click", async () => {
+    const maxPage = Math.max(0, Math.ceil(state.communityTotal / state.communityPageSize) - 1);
+    state.communityPage = Math.min(maxPage, state.communityPage + 1);
+    await loadCompanyCommunities();
+  });
+}
+
 async function loadCompanyMeta() {
   const response = await internalListCompanies({
     search: state.companyName || "",
@@ -130,11 +158,13 @@ async function loadCompanyMeta() {
 async function loadCompanyCommunities() {
   const response = await internalListClients({
     companyDirectoryId: state.companyDirectoryId,
-    limit: 400,
-    offset: 0,
+    limit: state.communityPageSize,
+    offset: state.communityPage * state.communityPageSize,
   });
   const rows = Array.isArray(response?.items) ? response.items : [];
+  state.communityTotal = Number(response?.total_count ?? rows.length);
   renderCommunityRows(rows);
+  renderCommunityPagination();
 }
 
 async function saveCompany() {

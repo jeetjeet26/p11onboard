@@ -123,6 +123,10 @@
         background: var(--red);
         border-color: var(--red);
       }
+      body:not(.client-authenticated):not(.internal-user) .nav a.home-link {
+        background: var(--red);
+        border-color: var(--red);
+      }
 
       .main {
         max-width: 1180px;
@@ -399,6 +403,7 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="/frontend/src/styles/shared.css" />
   </head>
   <body>
     <header class="header">
@@ -411,6 +416,8 @@
       </div>
       <nav class="nav" aria-label="App Navigation">
         <a class="active home-link" href="/client-home.html">Home</a>
+        <a class="auth-only-nav" href="/p11-onboarding-dashboard.html">Dashboard</a>
+        <a class="auth-only-nav" href="/p11-onboarding-account-access.html">Account Access</a>
         <a class="internal-only-nav" href="/internal.html">Internal Portal</a>
         <button class="nav-logout" id="logoutBtn" type="button">Log Out</button>
       </nav>
@@ -491,6 +498,7 @@
             <tbody id="communityBody"></tbody>
           </table>
         </div>
+        <div class="pagination-bar" id="clientCommunityPagination"></div>
       </section>
     </main>
 

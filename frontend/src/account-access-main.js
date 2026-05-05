@@ -12,45 +12,35 @@ import {
   upsertMyPlatformAccess,
   upsertTaskState,
 } from "./api.js";
+import {
+  ACCESS_STEP_COMPLETION_TASK_KEY,
+  STAGE_SEQUENCE,
+  deriveDisplayStage,
+  getStageCopy,
+  normalizeStage,
+  stageIndex,
+  toStageLabel,
+} from "./stages.js";
+import { applyRoleChrome, consumeRedirectNotice, renderNotice } from "./navigation.js";
 import { escapeHtml, sanitizeUrl } from "./utils/sanitize.js";
 
-const STAGE_SEQUENCE = [
-  "contract_signed",
-  "intake_form",
-  "account_access",
-  "creative_kickoff",
-  "campaign_build",
-  "prelaunch_review",
-  "go_live",
-];
-
-const STAGE_COPY = {
-  contract_signed:
-    "Your contract is signed. Complete the intake form to start onboarding.",
-  intake_form:
-    "Complete and submit your intake form before moving to account access.",
-  account_access:
-    "Grant access to the selected platforms below so implementation can begin.",
-  creative_kickoff:
-    "Your team is in creative kickoff. Platform access should already be complete.",
-  campaign_build: "Campaign build is in progress.",
-  prelaunch_review: "Pre-launch QA and review are in progress.",
-  go_live: "Campaigns are live.",
-};
-
 const PLATFORM_GUIDES = {
-  "Google Ads Manager": "https://support.google.com/google-ads/answer/6372672",
-  "Google Analytics 4 (GA4)": "https://www.p11.com/marketing/kb/google-analytics/",
-  "Google Tag Manager (GTM)": "https://www.p11.com/marketing/kb/add-user-to-gtm-account/",
-  "Google Search Console": "https://www.p11.com/marketing/kb/search-console/",
-  "Google Business Profile": "https://www.p11.com/marketing/kb/business-profile/",
+  "Google Ads Manager": "https://backstage.p11.com/marketing/kb/google-ads-admin-access/",
+  "Google Analytics 4 (GA4)": "https://backstage.p11.com/marketing/kb/google-analytics/",
+  "Google Tag Manager (GTM)": "https://backstage.p11.com/marketing/kb/add-user-to-gtm-account/",
+  "Google Search Console": "https://backstage.p11.com/marketing/kb/search-console/",
+  "Google Business Profile": "https://backstage.p11.com/marketing/kb/business-profile/",
   "Meta Business Suite / Pages":
-    "https://www.p11.com/marketing/kb/grant-social-media-partner-access/",
+    "https://backstage.p11.com/marketing/kb/grant-social-media-partner-access/",
   "Meta Ads Manager":
-    "https://www.p11.com/marketing/kb/grant-social-media-partner-access/",
+    "https://backstage.p11.com/marketing/kb/grant-social-media-partner-access/",
+  "LinkedIn Ads": "https://backstage.p11.com/marketing/kb/linkedin-ads-admin-access/",
+  "Email Marketing Platform": "https://backstage.p11.com/marketing/kb/email-marketing-access/",
+  "Website CMS (login credentials)": "https://backstage.p11.com/marketing/kb/website-credentials/",
+  "CRM Platform": "https://backstage.p11.com/marketing/kb/crm-access/",
+  "ILS Platform (Zillow / CoStar)": "https://backstage.p11.com/marketing/kb/ils-access/",
+  "Payment Methods": "https://backstage.p11.com/marketing/kb/payment-method-setup/",
 };
-const ACCESS_STEP_COMPLETION_TASK_KEY = "step_3_account_access_complete";
-
 const state = {
   session: null,
   portalContext: null,
@@ -85,25 +75,9 @@ function formatDate(dateValue) {
   });
 }
 
-function hasSubmittedIntake(context = null, payload = null) {
-  if (payload && typeof payload === "object" && Object.keys(payload).length > 0) {
-    return true;
-  }
-  const status = context?.status || "";
-  return ["submitted", "resubmitted", "in_review", "approved"].includes(status);
-}
-
-function deriveDisplayStage(stageCode, context = null, payload = null) {
-  const normalized = STAGE_SEQUENCE.includes(stageCode) ? stageCode : "intake_form";
-  if (normalized === "intake_form" && hasSubmittedIntake(context, payload)) {
-    return "account_access";
-  }
-  return normalized;
-}
-
 function applyStage(stageCode) {
-  const normalizedStage = STAGE_SEQUENCE.includes(stageCode) ? stageCode : "account_access";
-  const idx = Math.max(0, STAGE_SEQUENCE.indexOf(normalizedStage));
+  const normalizedStage = normalizeStage(stageCode, "account_access");
+  const idx = stageIndex(normalizedStage, "account_access");
   state.currentStageCode = normalizedStage;
   const dots = Array.from(document.querySelectorAll(".stage-dot"));
   const names = Array.from(document.querySelectorAll(".stage-name"));
@@ -136,8 +110,9 @@ function applyStage(stageCode) {
 
   const stepTitle = document.getElementById("stepTitle");
   const stepText = document.getElementById("stepText");
-  if (stepTitle) stepTitle.textContent = `Step ${idx + 1} of ${STAGE_SEQUENCE.length} — ${String(normalizedStage).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}`;
-  if (stepText) stepText.textContent = STAGE_COPY[normalizedStage] || STAGE_COPY.account_access;
+  const copy = getStageCopy(normalizedStage, "account_access");
+  if (stepTitle) stepTitle.textContent = copy.title;
+  if (stepText) stepText.textContent = copy.text;
   updateStageNavigationInteractivity(normalizedStage);
 }
 
@@ -156,17 +131,13 @@ function setSessionInfo() {
 }
 
 function applyRoleNavigation() {
-  const isInternalRole = ["internal", "admin"].includes(
-    state.portalContext?.portal_role || ""
-  );
-  document.body.classList.toggle("internal-user", isInternalRole);
+  const isInternalRole = applyRoleChrome(state.portalContext, {
+    homeLinkId: "accountAccessHomeLink",
+  });
   const homeLink = document.getElementById("accountAccessHomeLink");
   const backLink = document.getElementById("accountAccessBackLink");
   const returnLink = document.getElementById("accountAccessReturnLink");
-  if (homeLink) {
-    homeLink.setAttribute("href", isInternalRole ? "/internal.html" : "/client-home.html");
-    homeLink.classList.toggle("internal-home-link-active", isInternalRole);
-  }
+  homeLink?.classList.toggle("internal-home-link-active", isInternalRole);
   if (backLink) {
     backLink.textContent = isInternalRole ? "Open Community Intake" : "Back to Step 2 Intake";
   }
@@ -204,11 +175,9 @@ function renderCommunitySwitcher(communities, activeCommunityId) {
   communities.forEach((community) => {
     const option = document.createElement("option");
     option.value = String(community.onboarding_client_id);
-    option.textContent = `${community.community_name || "Unnamed Community"} (${String(
+    option.textContent = `${community.community_name || "Unnamed Community"} (${toStageLabel(
       community.current_stage || "contract_signed"
-    )
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())})`;
+    )})`;
     option.selected = Number(activeCommunityId) === Number(community.onboarding_client_id);
     switcher.appendChild(option);
   });
@@ -256,11 +225,9 @@ function getProgressSnapshot() {
 }
 
 function resolveAccessStage(progress) {
-  const creativeIndex = STAGE_SEQUENCE.indexOf("creative_kickoff");
-  const baseStage = STAGE_SEQUENCE.includes(state.baseDisplayStage)
-    ? state.baseDisplayStage
-    : "account_access";
-  const baseIndex = STAGE_SEQUENCE.indexOf(baseStage);
+  const creativeIndex = stageIndex("creative_kickoff");
+  const baseStage = normalizeStage(state.baseDisplayStage, "account_access");
+  const baseIndex = stageIndex(baseStage);
   if (baseIndex > creativeIndex) return baseStage;
   return progress.isStepComplete ? "creative_kickoff" : "account_access";
 }
@@ -290,7 +257,7 @@ function navigateToStageSection(stageCode) {
 }
 
 function updateStageNavigationInteractivity(stageCode) {
-  const currentIndex = Math.max(0, STAGE_SEQUENCE.indexOf(stageCode));
+  const currentIndex = stageIndex(stageCode);
   const stages = Array.from(document.querySelectorAll(".tracker .stage"));
   stages.forEach((stageEl, index) => {
     stageEl.dataset.stageCode = STAGE_SEQUENCE[index] || "";
@@ -306,8 +273,8 @@ function initializeStageNavigation() {
     stageEl.dataset.stageCode = STAGE_SEQUENCE[index] || "";
     stageEl.addEventListener("click", () => {
       const targetStage = stageEl.dataset.stageCode;
-      const currentIndex = Math.max(0, STAGE_SEQUENCE.indexOf(state.currentStageCode));
-      const targetIndex = Math.max(0, STAGE_SEQUENCE.indexOf(targetStage));
+      const currentIndex = stageIndex(state.currentStageCode);
+      const targetIndex = stageIndex(targetStage);
       if (targetIndex > currentIndex) return;
       navigateToStageSection(targetStage);
     });
@@ -577,6 +544,7 @@ async function hydrateAuthenticated() {
 }
 
 async function initialize() {
+  renderNotice(consumeRedirectNotice());
   initializeStageNavigation();
   bindHandlers();
   const session = await getCurrentSession();

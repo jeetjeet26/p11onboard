@@ -9,11 +9,19 @@ import {
   signInUser,
   signOutUser,
 } from "./api.js";
+import {
+  applyRoleChrome,
+  consumeRedirectNotice,
+  renderNotice,
+} from "./navigation.js";
+import { stageDestination } from "./stages.js";
 
 const state = {
   session: null,
   context: null,
   communities: [],
+  communityPage: 0,
+  communityPageSize: 25,
   openingCommunityId: null,
 };
 
@@ -61,12 +69,14 @@ function showLoggedOutView() {
   document.getElementById("authCard")?.classList.remove("hide");
   document.getElementById("clientShell")?.classList.remove("show");
   document.body.classList.remove("internal-user");
+  document.body.classList.remove("client-authenticated");
   setAuthMessage("");
 }
 
 function showLoggedInView() {
   document.getElementById("authCard")?.classList.add("hide");
   document.getElementById("clientShell")?.classList.add("show");
+  document.body.classList.add("client-authenticated");
 }
 
 function updateHeaderAuthControls(session) {
@@ -76,9 +86,7 @@ function updateHeaderAuthControls(session) {
 }
 
 function applyRoleNavigation(context = null) {
-  const role = context?.portal_role || "";
-  const isInternalRole = role === "internal" || role === "admin";
-  document.body.classList.toggle("internal-user", isInternalRole);
+  applyRoleChrome(context);
 }
 
 function setCompanySummary(context, communities) {
@@ -175,6 +183,38 @@ function renderCommunities(communities) {
   updateStats(communities);
 }
 
+function renderCommunityPagination(total) {
+  const target = document.getElementById("clientCommunityPagination");
+  if (!target) return;
+  const totalPages = Math.max(1, Math.ceil(total / state.communityPageSize));
+  const start = total ? state.communityPage * state.communityPageSize + 1 : 0;
+  const end = Math.min(total, (state.communityPage + 1) * state.communityPageSize);
+  target.innerHTML = `
+    <span>Showing ${start}-${end} of ${total}</span>
+    <span class="pagination-actions">
+      <button type="button" data-client-prev ${state.communityPage <= 0 ? "disabled" : ""}>Previous</button>
+      <span>Page ${state.communityPage + 1} of ${totalPages}</span>
+      <button type="button" data-client-next ${state.communityPage >= totalPages - 1 ? "disabled" : ""}>Next</button>
+    </span>
+  `;
+  target.querySelector("[data-client-prev]")?.addEventListener("click", () => {
+    state.communityPage = Math.max(0, state.communityPage - 1);
+    renderCommunityPage();
+  });
+  target.querySelector("[data-client-next]")?.addEventListener("click", () => {
+    const maxPage = Math.max(0, Math.ceil(state.communities.length / state.communityPageSize) - 1);
+    state.communityPage = Math.min(maxPage, state.communityPage + 1);
+    renderCommunityPage();
+  });
+}
+
+function renderCommunityPage() {
+  const start = state.communityPage * state.communityPageSize;
+  renderCommunities(state.communities.slice(start, start + state.communityPageSize));
+  updateStats(state.communities);
+  renderCommunityPagination(state.communities.length);
+}
+
 async function openCommunity(onboardingClientId, currentStage) {
   const numericId = Number(onboardingClientId);
   if (!numericId) return;
@@ -182,10 +222,7 @@ async function openCommunity(onboardingClientId, currentStage) {
   try {
     setTableLoadingState(numericId);
     await setMyActiveCommunity(numericId);
-    const destination =
-      currentStage === "account_access"
-        ? "/p11-onboarding-account-access.html"
-        : "/p11-onboarding-dashboard.html";
+    const destination = stageDestination(currentStage);
     window.location.href = destination;
   } catch (error) {
     setTableLoadingState(null);
@@ -197,10 +234,11 @@ async function loadClientHomeData() {
   const [context, communities] = await Promise.all([getMyPortalContext(), listMyCommunities()]);
   state.context = context || null;
   state.communities = Array.isArray(communities) ? communities : [];
+  state.communityPage = 0;
 
   applyRoleNavigation(state.context);
   setCompanySummary(state.context, state.communities);
-  renderCommunities(state.communities);
+  renderCommunityPage();
 }
 
 async function redirectInternalSessionHome() {
@@ -292,6 +330,7 @@ function bindHandlers() {
 }
 
 async function initialize() {
+  renderNotice(consumeRedirectNotice());
   bindHandlers();
   const session = await getCurrentSession();
   state.session = session;

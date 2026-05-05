@@ -323,9 +323,12 @@ values
   ('google_business_profile', 'Google Business Profile', false, false),
   ('meta_business_suite', 'Meta Business Suite / Pages', false, false),
   ('meta_ads', 'Meta Ads Manager', false, false),
+  ('linkedin_ads', 'LinkedIn Ads', false, false),
+  ('email_marketing_platform', 'Email Marketing Platform', false, true),
   ('website_cms', 'Website CMS', true, true),
   ('crm', 'CRM Platform', true, true),
-  ('ils', 'ILS Platform', false, false)
+  ('ils', 'ILS Platform', false, false),
+  ('payment_methods', 'Payment Methods', true, true)
 on conflict (platform_code) do update
 set display_name = excluded.display_name,
     is_required_default = excluded.is_required_default,
@@ -5075,3 +5078,304 @@ grant execute on function public.internal_assert_portal_company_consistency() to
 grant execute on function public.create_internal_signup_invite(text, text, text, integer, text) to authenticated, service_role;
 grant execute on function public.get_internal_signup_invite(text) to anon, authenticated, service_role;
 grant execute on function public.redeem_internal_signup_invite(text, text) to authenticated, service_role;
+
+-- -----------------------------------------------------------------------------
+-- Dropbox Business Integration
+-- -----------------------------------------------------------------------------
+-- Singleton record storing the shared P11 Dropbox Business connection. Tokens
+-- are stored here and read only via service_role from Edge Functions; the table
+-- is fully blocked to authenticated roles via RLS. A status RPC exposes the
+-- non-sensitive subset of fields to internal users.
+create table if not exists onboarding.dropbox_integration (
+  id bigint primary key default 1,
+  is_active boolean not null default false,
+  app_key text,
+  team_id text,
+  team_name text,
+  team_member_id text,
+  account_id text,
+  account_email text,
+  account_display_name text,
+  team_root_namespace_id text,
+  home_namespace_id text,
+  folder_root_path text,
+  folder_root_display_path text,
+  refresh_token text,
+  access_token text,
+  access_token_expires_at timestamptz,
+  scope text,
+  connected_by_user_id uuid,
+  connected_by_email text,
+  connected_at timestamptz,
+  last_error text,
+  last_synced_at timestamptz,
+  metadata_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint dropbox_integration_singleton_chk check (id = 1)
+);
+
+insert into onboarding.dropbox_integration (id, is_active)
+values (1, false)
+on conflict (id) do nothing;
+
+-- Per-community Dropbox folder binding. This is the operational record used by
+-- the Dropbox upload flow; the non-sensitive folder URL is also mirrored to
+-- onboarding.onboarding_link (system_code='dropbox_creative_folder') so that
+-- get_my_dashboard_resources() can surface the quick link to clients.
+create table if not exists onboarding.dropbox_folder_binding (
+  id bigint generated always as identity primary key,
+  onboarding_client_id bigint not null unique references onboarding.onboarding_client(id) on delete cascade,
+  namespace_id text,
+  folder_id text,
+  folder_path text,
+  folder_display_path text,
+  shared_link_url text,
+  link_source text not null check (link_source in ('linked', 'created')),
+  linked_by_user_id uuid,
+  linked_by_email text,
+  linked_at timestamptz,
+  last_upload_at timestamptz,
+  metadata_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_dropbox_folder_binding_client_id
+  on onboarding.dropbox_folder_binding(onboarding_client_id);
+
+drop trigger if exists trg_dropbox_integration_updated_at on onboarding.dropbox_integration;
+create trigger trg_dropbox_integration_updated_at
+before update on onboarding.dropbox_integration
+for each row execute function onboarding.tg_set_updated_at();
+
+drop trigger if exists trg_dropbox_folder_binding_updated_at on onboarding.dropbox_folder_binding;
+create trigger trg_dropbox_folder_binding_updated_at
+before update on onboarding.dropbox_folder_binding
+for each row execute function onboarding.tg_set_updated_at();
+
+alter table onboarding.dropbox_integration enable row level security;
+alter table onboarding.dropbox_folder_binding enable row level security;
+
+drop policy if exists dropbox_integration_block_policy on onboarding.dropbox_integration;
+create policy dropbox_integration_block_policy
+on onboarding.dropbox_integration
+for all
+using (false)
+with check (false);
+
+drop policy if exists dropbox_folder_binding_select_policy on onboarding.dropbox_folder_binding;
+create policy dropbox_folder_binding_select_policy
+on onboarding.dropbox_folder_binding
+for select
+using (
+  onboarding.is_internal_user()
+  or onboarding.has_client_access(onboarding_client_id)
+);
+
+drop policy if exists dropbox_folder_binding_modify_internal_policy on onboarding.dropbox_folder_binding;
+create policy dropbox_folder_binding_modify_internal_policy
+on onboarding.dropbox_folder_binding
+for all
+using (onboarding.is_internal_user())
+with check (onboarding.is_internal_user());
+
+create or replace function public.internal_get_dropbox_status()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_row onboarding.dropbox_integration%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+
+  select * into v_row from onboarding.dropbox_integration where id = 1;
+
+  if not found then
+    return jsonb_build_object(
+      'is_active', false,
+      'is_connected', false
+    );
+  end if;
+
+  return jsonb_build_object(
+    'is_active', v_row.is_active,
+    'is_connected', v_row.refresh_token is not null,
+    'team_name', v_row.team_name,
+    'team_id', v_row.team_id,
+    'account_email', v_row.account_email,
+    'account_display_name', v_row.account_display_name,
+    'team_root_namespace_id', v_row.team_root_namespace_id,
+    'home_namespace_id', v_row.home_namespace_id,
+    'folder_root_path', v_row.folder_root_path,
+    'folder_root_display_path', v_row.folder_root_display_path,
+    'connected_by_email', v_row.connected_by_email,
+    'connected_at', v_row.connected_at,
+    'last_error', v_row.last_error,
+    'last_synced_at', v_row.last_synced_at,
+    'scope', v_row.scope
+  );
+end;
+$$;
+
+create or replace function public.internal_get_dropbox_folder_binding(
+  p_onboarding_client_id bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_row onboarding.dropbox_folder_binding%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+  if p_onboarding_client_id is null then
+    raise exception 'onboarding_client_id is required';
+  end if;
+
+  select * into v_row
+  from onboarding.dropbox_folder_binding
+  where onboarding_client_id = p_onboarding_client_id;
+
+  if not found then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'onboarding_client_id', v_row.onboarding_client_id,
+    'namespace_id', v_row.namespace_id,
+    'folder_id', v_row.folder_id,
+    'folder_path', v_row.folder_path,
+    'folder_display_path', v_row.folder_display_path,
+    'shared_link_url', v_row.shared_link_url,
+    'link_source', v_row.link_source,
+    'linked_by_email', v_row.linked_by_email,
+    'linked_at', v_row.linked_at,
+    'last_upload_at', v_row.last_upload_at
+  );
+end;
+$$;
+
+create or replace function public.internal_clear_dropbox_folder_binding(
+  p_onboarding_client_id bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not onboarding.is_internal_user() then
+    raise exception 'Internal access required' using errcode = '42501';
+  end if;
+  if p_onboarding_client_id is null then
+    raise exception 'onboarding_client_id is required';
+  end if;
+
+  delete from onboarding.dropbox_folder_binding
+  where onboarding_client_id = p_onboarding_client_id;
+
+  delete from onboarding.onboarding_link
+  where onboarding_client_id = p_onboarding_client_id
+    and system_code = 'dropbox_creative_folder';
+
+  return jsonb_build_object('status', 'ok');
+end;
+$$;
+
+create or replace function public.get_my_dropbox_folder()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_auth_user_id uuid := auth.uid();
+  v_onboarding_client_id bigint;
+  v_row onboarding.dropbox_folder_binding%rowtype;
+begin
+  if v_auth_user_id is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+
+  select m.onboarding_client_id
+  into v_onboarding_client_id
+  from onboarding.portal_user_company_access m
+  where m.auth_user_id = v_auth_user_id
+    and m.is_active = true
+  order by m.updated_at desc, m.id desc
+  limit 1;
+
+  if v_onboarding_client_id is null then
+    return null;
+  end if;
+
+  select * into v_row
+  from onboarding.dropbox_folder_binding
+  where onboarding_client_id = v_onboarding_client_id;
+
+  if not found then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'onboarding_client_id', v_row.onboarding_client_id,
+    'folder_display_path', v_row.folder_display_path,
+    'shared_link_url', v_row.shared_link_url,
+    'link_source', v_row.link_source,
+    'linked_at', v_row.linked_at,
+    'last_upload_at', v_row.last_upload_at
+  );
+end;
+$$;
+
+-- Lightweight access probe used by Edge Functions to decide whether a user may
+-- upload into a given community's Dropbox folder. Returns auth + role flags.
+create or replace function public.can_access_onboarding_client(
+  p_onboarding_client_id bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, onboarding
+as $$
+declare
+  v_is_internal boolean := false;
+  v_has_access boolean := false;
+begin
+  if auth.uid() is null then
+    return jsonb_build_object('authenticated', false, 'can_access', false);
+  end if;
+
+  v_is_internal := onboarding.is_internal_user();
+  v_has_access := v_is_internal or onboarding.has_client_access(p_onboarding_client_id);
+
+  return jsonb_build_object(
+    'authenticated', true,
+    'is_internal', v_is_internal,
+    'can_access', v_has_access
+  );
+end;
+$$;
+
+grant execute on function public.internal_get_dropbox_status() to authenticated, service_role;
+grant execute on function public.internal_get_dropbox_folder_binding(bigint) to authenticated, service_role;
+grant execute on function public.internal_clear_dropbox_folder_binding(bigint) to authenticated, service_role;
+grant execute on function public.get_my_dropbox_folder() to authenticated, service_role;
+grant execute on function public.can_access_onboarding_client(bigint) to authenticated, service_role;
